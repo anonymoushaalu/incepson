@@ -222,14 +222,34 @@ npx tsx scripts/db-query.mjs "SELECT intent_id,status,consumed_at FROM intents;"
 **Let the agent actually be fooled.** Do not filter the injection out of its context —
 an agent that resists makes the defence look like it lives in the model.
 
+**Number design correction found this session:** five drip charges must each be
+`≤ soft_limit_hbar` (0.05) to settle *autonomously* — above it they ESCALATE instead
+of dripping through. But 5 × 0.05 = 0.25, which never crosses the real
+`daily_budget_hbar` (0.30) within five calls. `POST /api/dev/demo-budget` shrinks the
+*effective* budget in memory for this one scenario, without touching `policy.json`'s
+real value used by scenes 1–3. `POST /api/dev/reset-day` clears both the spend window
+and this override.
+
 ```bash
 curl -X POST localhost:3000/api/agent/run -H 'content-type: application/json' -d '{"scenario":"injection"}'
+
 curl -X POST localhost:3000/api/dev/reset-day
+curl -X POST localhost:3000/api/dev/demo-budget -H 'content-type: application/json' -d '{"daily_budget_hbar": 0.22}'
 curl -X POST localhost:3000/api/agent/run -H 'content-type: application/json' -d '{"scenario":"drip"}'
+# scenario":"drip" prompts the agent to re-request eth-price.local repeatedly;
+# rerun this last curl up to 5 times if the agent doesn't loop far enough on its own.
 ```
 
-Expect 3 settle, 4th `OVER_DAILY_BUDGET`. Watching the budget bar fill and then the
-wall arrive is the most persuasive thing on the screen.
+Expect 4 settle at 0.05 each (0.20 total), 5th denies on `OVER_DAILY_BUDGET`
+(0.20 + 0.05 = 0.25 > 0.22). Verified in `src/broker/index.test.ts` against the
+real broker, ledger, and demo-budget override — not mocked. Watching the budget bar
+fill and then the wall arrive is the most persuasive thing on the screen.
+
+Reset before returning to scenes 1–3 so they run against the real 0.30 budget:
+
+```bash
+curl -X POST localhost:3000/api/dev/reset-day
+```
 
 The ground-truth query — run after **every** rehearsal:
 
