@@ -1,18 +1,34 @@
 import { randomUUID } from "node:crypto";
 import { evaluate } from "../policy/engine.js";
 import { evaluateSignals } from "../signals/index.js";
-import { policy } from "../config.js";
+import { policy, env } from "../config.js";
 import { spentInWindow, settledAmountsForService, recordRequest, markSettled } from "../ledger/index.js";
 import { publish } from "../bus.js";
+import { createIntent, expireStaleIntents, type IntentRow } from "../intents/index.js";
 import type { PaymentRequest, PolicyResult } from "../policy/types.js";
 
 // The ONLY caller of policy.evaluate() and the ONLY module besides
-// payments/x402.ts that settles a payment. ALLOW settles, DENY records and
-// refuses with no retry affordance, ESCALATE is wired in Phase 4.
+// payments/x402.ts that settles a payment. ALLOW settles immediately, DENY
+// records and refuses with no retry affordance, ESCALATE creates a signed
+// intent and waits for device approval or timeout.
 export interface BrokerResult {
   requestId: string;
   result: PolicyResult;
   txId?: string;
+  intentId?: string;
+}
+
+// Parked promises for pending escalations, resolved by routes/device.ts on
+// approval or by the timeout below. One merchant process backs every
+// allowlisted service in this MVP, so the recipient is always its account.
+const pendingEscalations = new Map<string, { resolve: (approved: boolean) => void }>();
+
+export function resolveEscalation(intentId: string, approved: boolean): boolean {
+  const parked = pendingEscalations.get(intentId);
+  if (!parked) return false;
+  pendingEscalations.delete(intentId);
+  parked.resolve(approved);
+  return true;
 }
 
 export async function requestPayment(
@@ -42,8 +58,6 @@ export async function requestPayment(
   }
 
   if (result.decision === "ESCALATE") {
-    // Phase 4: create a signed intent, park a promise, resolve on device
-    // approval or timeout. Recorded as pending (not settled) for now.
     recordRequest({
       id: requestId,
       req,
@@ -53,8 +67,39 @@ export async function requestPayment(
       settled: false,
       now,
     });
+
+    const intent = createIntent({
+      requestId,
+      service: req.service,
+      recipient: env.merchantAccountId,
+      amountHbar: req.amount_hbar,
+      reasonCode: result.code,
+      now,
+    });
     publish({ type: "decision", requestId, service: req.service, amountHbar: req.amount_hbar, decision: result.decision, code: result.code, explanation: result.explanation });
-    return { requestId, result };
+    publish({ type: "intent_pending", intent });
+
+    const approved = await waitForApproval(intent, policy.escalation_timeout_sec);
+    if (!approved) {
+      // A device approval racing this exact instant is rejected downstream:
+      // approveIntent only succeeds on a still-PENDING row, and this marks
+      // it EXPIRED atomically via the same status column it checks.
+      expireStaleIntents(new Date());
+      publish({ type: "intent_timeout", intentId: intent.intent_id });
+      return { requestId, result: { ...result, code: "ESCALATION_TIMEOUT" }, intentId: intent.intent_id };
+    }
+
+    // Settlement reads THE INTENT'S fields, never the agent's re-supplied
+    // request object -- closes the swap hole: a request mutated after
+    // escalation cannot redirect an approved payment.
+    const { txId } = await opts.settle({
+      service: intent.service,
+      amount_hbar: intent.amount_hbar,
+      reason: intent.reason,
+    });
+    markSettled(requestId, txId);
+    publish({ type: "decision", requestId, service: intent.service, amountHbar: intent.amount_hbar, decision: "ALLOW", code: "APPROVED_BY_DEVICE", explanation: "Approved by physical button press.", txId });
+    return { requestId, result, txId, intentId: intent.intent_id };
   }
 
   // ALLOW
@@ -71,4 +116,20 @@ export async function requestPayment(
   });
   publish({ type: "decision", requestId, service: req.service, amountHbar: req.amount_hbar, decision: result.decision, code: result.code, explanation: result.explanation, txId });
   return { requestId, result, txId };
+}
+
+function waitForApproval(intent: IntentRow, timeoutSec: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingEscalations.delete(intent.intent_id);
+      resolve(false);
+    }, timeoutSec * 1000);
+
+    pendingEscalations.set(intent.intent_id, {
+      resolve: (approved) => {
+        clearTimeout(timer);
+        resolve(approved);
+      },
+    });
+  });
 }

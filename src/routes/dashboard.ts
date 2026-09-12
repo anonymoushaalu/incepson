@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { subscribe } from "../bus.js";
 import { spentInWindow, recentRequests } from "../ledger/index.js";
+import { getPendingIntent } from "../intents/index.js";
 import { policy } from "../config.js";
 
 export const dashboardRouter = Router();
@@ -12,6 +13,7 @@ function snapshot() {
     spentWindowHbar: spentInWindow(now),
     remainingHbar: policy.daily_budget_hbar - spentInWindow(now),
     recentRequests: recentRequests(50),
+    pendingIntent: getPendingIntent(now) ?? null,
   };
 }
 
