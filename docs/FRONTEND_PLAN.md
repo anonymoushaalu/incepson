@@ -35,15 +35,26 @@ object's transform is that skill's explicit anti-pattern #1.
 | `react-router-dom` | 7.18.3 | Multi-page. |
 | `maath` | 0.10.8 | Easing/damping for camera + packet motion. |
 | `zustand` | 5.0.15 | Shared 3D scene state (selected node, camera target) — the skill's recommended pattern, kept separate from the SSE data store. |
-| `framer-motion` | 13.2.0 | Click/hover micro-interactions on 3D nodes (`motion.mesh`-style spring transitions), per the skill's R3F+Motion example. |
+| `framer-motion` | 13.2.0 | DOM-only micro-interactions (page transitions, the `Html` side-panel, drawer/list animation on `/decisions`). |
+
+**Correction to the initial plan:** the skill's `<motion.mesh>` example
+implies `framer-motion-3d`, a *separate* package for animating three.js
+primitives directly. Checked before depending on it — `framer-motion-3d`
+pins `@react-three/fiber` to the exact old peer `8.2.2` and has had no
+release since, so it cannot coexist with our R3F 9.7.0. 3D node hover/select
+feedback is instead driven by `maath`'s damp/easing helpers inside
+`useFrame`, imperatively — same layered-separation principle, one fewer
+library actually touching a three.js object's transform.
 
 **Layered separation**, per the skill: Three.js rendering, animation, and
 React UI stay independent layers that don't fight over the same property.
 Concretely — `store/useAgentPayStore.ts` (SSE/data) and
 `scene/useSceneStore.ts` (Zustand: camera target, selected node, hover
 state) are two separate stores; packet motion is driven imperatively inside
-`useFrame` off the data store, node click/hover feedback is driven by
-Framer Motion off the scene store. Nothing touches both.
+`useFrame` off the data store, node click/hover feedback is driven
+imperatively inside `useFrame` off the scene store (both via `maath`
+easing), and Framer Motion only ever touches DOM elements. Nothing touches
+the same three.js object's transform from two places.
 
 **Performance:** `<Canvas frameloop="demand">` with manual `invalidate()`
 on state changes, since this scene is mostly idle between SSE events, not a
@@ -91,9 +102,11 @@ Interactive, not decorative:
 - **Colour is the decision** — emerald ALLOW, amber ESCALATE, red DENY.
   A DENY packet visibly *stops dead* at the wall and dissipates. That
   single animation is the whole security claim, visually.
-- **Click any node** → a `drei/Html` side panel explains that stage and
-  shows its live counters (e.g. click POLICY ENGINE, see the current rule
-  evaluation order and how many requests each branch took).
+- **Click any node** → a fixed DOM side panel (not `drei/Html` -- that's for
+  labels anchored in 3D space; a fixed inspector reads better as plain,
+  selectable text outside the canvas) explains that stage and shows its live
+  counters (e.g. click POLICY ENGINE, see the current rule evaluation order
+  and how many requests each branch took).
 - **Orbit / zoom / pan** via `OrbitControls`, with a "reset view" affordance.
 - **The budget wall** is a literal 3D wall on the ALLOW edge whose height
   tracks `spentWindowHbar / daily_budget_hbar`. When the drip attack fills
@@ -166,7 +179,7 @@ web/src/
     FlowScene.tsx            the <Canvas> root; frameloop="demand", dpr capped
     nodes/                   Agent, Signals, Policy, Allow, Escalate, Deny, Hedera, Device
                              (each an "InteractiveObject": data-store-driven state,
-                              framer-motion-driven click/hover feedback)
+                              maath-eased click/hover feedback in useFrame)
     Packet.tsx               instanced travelling payments, driven imperatively in useFrame
     BudgetWall.tsx           height-tracks spend
     useFlowEvents.ts         maps SSE events -> spawned packets; calls invalidate()

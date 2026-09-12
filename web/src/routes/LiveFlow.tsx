@@ -5,13 +5,18 @@ import { BudgetPanel } from "../components/BudgetPanel.js";
 import { DecisionFeed } from "../components/DecisionFeed.js";
 import { PendingIntent } from "../components/PendingIntent.js";
 import { PolicyPanel } from "../components/PolicyPanel.js";
+import { FlowScene } from "../scene/FlowScene.js";
+import { useWebglSupported } from "../scene/useWebglSupported.js";
 
 /**
- * `/` -- the hero page. A1: DOM panels only (migrated from the old App.tsx).
- * A3-A5 replace the panel grid below with the 3D flow scene; these panels
- * become the WebGL-unavailable fallback per docs/FRONTEND_PLAN.md.
+ * `/` -- the hero page. The 3D enforcement-graph scene renders when WebGL is
+ * available; the original panel grid is the fallback per docs/FRONTEND_PLAN.md
+ * ("Degrades: if WebGL is unavailable, render the DOM fallback panel set").
+ * The panel grid always renders below the scene too, since it's the more
+ * data-dense view a technical judge may still want alongside the visual.
  */
 export function LiveFlow() {
+  const webglSupported = useWebglSupported();
   const connect = useAgentPayStore((s) => s.connect);
   const state = useAgentPayStore((s) => s.snapshot);
   const [running, setRunning] = useState(false);
@@ -56,12 +61,24 @@ export function LiveFlow() {
       {!state ? (
         <p className="text-slate-500">Connecting...</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <BudgetPanel state={state} />
-          <PendingIntent state={state} />
-          <DecisionFeed state={state} />
-          <PolicyPanel state={state} />
-        </div>
+        <>
+          {webglSupported === false && (
+            <p className="mb-4 rounded-md border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs text-amber-400">
+              WebGL is unavailable in this browser — showing the data panels only.
+            </p>
+          )}
+          {webglSupported !== false && (
+            <div className="mb-4">
+              <FlowScene />
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <BudgetPanel state={state} />
+            <PendingIntent state={state} />
+            <DecisionFeed state={state} />
+            <PolicyPanel state={state} />
+          </div>
+        </>
       )}
     </div>
   );
