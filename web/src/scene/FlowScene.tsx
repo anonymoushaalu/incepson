@@ -7,6 +7,7 @@ import { NodeInspector } from "./NodeInspector.js";
 import { CameraReset } from "./CameraReset.js";
 import { BudgetWall } from "./BudgetWall.js";
 import { Packet } from "./Packet.js";
+import { IntentCountdown } from "./IntentCountdown.js";
 import { useFlowEvents } from "./useFlowEvents.js";
 import { useSceneStore } from "../store/useSceneStore.js";
 import { useAgentPayStore } from "../store/useAgentPayStore.js";
@@ -48,6 +49,7 @@ export function FlowScene() {
         {packets.map((spec) => (
           <Packet key={spec.id} spec={spec} />
         ))}
+        <IntentCountdown />
 
         <CameraReset />
         <OrbitControls
