@@ -146,7 +146,7 @@ Prove a denial costs nothing on-chain:
 ```bash
 curl -X POST localhost:3000/api/agent/run -H 'content-type: application/json' \
      -d '{"scenario":"over-limit"}'
-sqlite3 agentpay.db "SELECT decision,decision_code,settled,tx_id FROM payment_requests ORDER BY created_at DESC LIMIT 3;"
+node scripts/db-query.mjs "SELECT decision,decision_code,settled,tx_id FROM payment_requests ORDER BY created_at DESC LIMIT 3;"
 # every DENY row: settled=0, tx_id NULL
 ```
 
@@ -199,7 +199,7 @@ curl -X POST localhost:3000/device/approve -H 'content-type: application/json' \
 #   same intent, fresh nonce -> also rejected: already CONSUMED
 # 3 SWAP - approve, mutate the agent request object, then settle:
 #   the settled amount must still match the INTENT row.
-sqlite3 agentpay.db "SELECT intent_id,status,consumed_at FROM intents;"
+node scripts/db-query.mjs "SELECT intent_id,status,consumed_at FROM intents;"
 ```
 
 ---
@@ -221,7 +221,7 @@ wall arrive is the most persuasive thing on the screen.
 The ground-truth query — run after **every** rehearsal:
 
 ```bash
-sqlite3 agentpay.db "SELECT COUNT(*) FROM payment_requests WHERE decision='DENY' AND (settled=1 OR tx_id IS NOT NULL);"
+node scripts/db-query.mjs "SELECT COUNT(*) FROM payment_requests WHERE decision='DENY' AND (settled=1 OR tx_id IS NOT NULL);"
 # MUST be 0. this is proof the enforcement boundary held.
 ```
 
@@ -254,5 +254,5 @@ curl -s localhost:3000/health
 curl -i localhost:4001/honest/gas-oracle | head -1     # 402
 curl -i localhost:3000/device/pending    | head -1     # 204 when idle
 grep -rn 'payments/' src/agent/                        # nothing
-sqlite3 agentpay.db "SELECT COUNT(*) FROM payment_requests WHERE decision='DENY' AND settled=1;"  # 0
+node scripts/db-query.mjs "SELECT COUNT(*) FROM payment_requests WHERE decision='DENY' AND settled=1;"  # 0
 ```
