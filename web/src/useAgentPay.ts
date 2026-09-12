@@ -25,11 +25,22 @@ export interface RequestRow {
   tx_id: string | null;
 }
 
+export interface IntentRow {
+  intent_id: string;
+  service: string;
+  recipient: string;
+  amount_hbar: number;
+  reason: string;
+  expires_at: string;
+  status: "PENDING" | "APPROVED" | "EXPIRED" | "CONSUMED";
+}
+
 export interface Snapshot {
   policy: PolicyConfig;
   spentWindowHbar: number;
   remainingHbar: number;
   recentRequests: RequestRow[];
+  pendingIntent: IntentRow | null;
 }
 
 type DecisionEvent = {
@@ -84,6 +95,19 @@ export function useAgentPay() {
       fetch("/api/state")
         .then((r) => r.json())
         .then(setState);
+    });
+
+    source.addEventListener("intent_pending", (ev) => {
+      const { intent } = JSON.parse((ev as MessageEvent).data) as { intent: IntentRow };
+      setState((prev) => (prev ? { ...prev, pendingIntent: intent } : prev));
+    });
+
+    source.addEventListener("intent_timeout", () => {
+      setState((prev) => (prev ? { ...prev, pendingIntent: null } : prev));
+    });
+
+    source.addEventListener("intent_resolved", () => {
+      setState((prev) => (prev ? { ...prev, pendingIntent: null } : prev));
     });
 
     return () => source.close();

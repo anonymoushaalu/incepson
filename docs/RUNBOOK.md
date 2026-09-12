@@ -181,7 +181,20 @@ Hardware bring-up first — do this Day 1 evening while something installs:
 
 ```bash
 arduino-cli core install esp32:esp32
-arduino-cli lib install "Adafruit SSD1306" "Adafruit GFX Library"
+arduino-cli lib install "Adafruit SSD1306" "Adafruit GFX Library" "ArduinoJson"
+
+# Compile the bare HMAC sketch FIRST. It has no WiFi/OLED dependency and
+# proves mbedtls/md.h works in your core version before you build on it.
+arduino-cli compile --fqbn esp32:esp32:esp32 firmware/hmac_bringup
+arduino-cli upload  --fqbn esp32:esp32:esp32 -p COM5 firmware/hmac_bringup
+arduino-cli monitor -p COM5 -c baudrate=115200
+# EXPECT: bcc889a40667cab715e1dc22ad280692cf4bf1c3a280eeeca60d8dbcd8e4b993
+# (verified against node crypto.createHmac -- see the sketch's header comment)
+
+# Copy the secrets template and fill in your WiFi + backend LAN IP + the
+# same DEVICE_HMAC_SECRET hex string as .env:
+cp firmware/agentpay_device/secrets.h.example firmware/agentpay_device/secrets.h
+
 arduino-cli compile --fqbn esp32:esp32:esp32 firmware/agentpay_device
 arduino-cli upload  --fqbn esp32:esp32:esp32 -p COM5 firmware/agentpay_device
 arduino-cli monitor -p COM5 -c baudrate=115200
