@@ -1,4 +1,4 @@
-import type { Snapshot, RequestRow } from "../useAgentPay";
+import type { Snapshot, RequestRow } from "../store/useAgentPayStore.js";
 
 const COLORS: Record<RequestRow["decision"], string> = {
   ALLOW: "border-emerald-600 bg-emerald-950/40 text-emerald-300",
