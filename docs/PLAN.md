@@ -1,0 +1,139 @@
+# AgentPay — Execution Plan
+
+Derived from `agentpay-blueprint.pdf`. This file records the **resolved decisions**
+(T1–T7 + the allowlist contradiction) and the phase-by-phase build order.
+
+## 0. Verification log — checked 2026-09-12
+
+Re-verified live, because the blueprint's numbers were already stale.
+
+| Claim | Result |
+|---|---|
+| `x402.org/facilitator` advertises `hedera:testnet` | **YES** — `feePayer: 0.0.9185802` |
+| `@x402/core` / `@x402/hedera` | **2.25.0** (blueprint said 2.13.2 — stale) |
+| `@x402/express` exists & composes | **YES, 2.25.0** — resolves the §0 "budget an hour" unknown |
+| `@hiero-ledger/sdk` | 2.88.0 |
+| `openai` | 7.15.0 |
+| `better-sqlite3` / `express` | 13.0.3 / 5.2.1 |
+| Node | v22.20.0 (LTS, fine) |
+| `HBAR_ASSET_ID` | `"0.0.0"` confirmed in package types |
+| Subpaths `./exact/client`, `./exact/server` | confirmed in package `exports` |
+
+### Signatures read from installed `.d.mts` — do NOT write these from memory
+
+```ts
+createClientHederaSigner(accountId: string, privateKey: PrivateKey,
+                         config?: { network?: string; nodeUrl?: string }): ClientHederaSigner
+new x402Client(paymentRequirementsSelector?)          // .register(network, schemeClient)
+new x402ResourceServer(facilitatorClients?)           // .register(network, schemeServer)
+new HTTPFacilitatorClient(config?: FacilitatorConfig) // { url, timeoutMs }
+new ExactHederaScheme(config?: HederaServerConfig)    // server side: { defaultAssets? }
+paymentMiddleware(routes, server, paywallConfig?, paywall?, syncFacilitatorOnStart?)
+```
+
+**Blueprint correction:** §0 said server-side `ExactHederaScheme` is "constructed with a
+facilitatorClient". It is not — the facilitator client goes to `x402ResourceServer`.
+The scheme takes an optional `{ defaultAssets }`.
+
+**Header is `X-Payment`**, not `X-PAYMENT`.
+
+---
+
+## 1. Resolved decisions
+
+### T2 — amount anomaly: p95 with soft-limit fallback
+`soft_limit_hbar` applies until a service has `p95_min_sample` settled transactions;
+above that, the real p95 for that service takes over. Signal renamed
+`amount_anomalous` so the name never overstates what ran.
+
+### T3 — budget window: rolling 24h + explicit reset
+`budget_window: "rolling_24h"`. **Constraint from user: the demo must never be blocked
+by a limit I can't clear.** Therefore `POST /api/dev/reset-day` lands in **Phase 2**,
+not Phase 5 — it stamps a `budget_epoch` and daily spend only counts settlements after
+it. One click re-arms every scenario. Never gated behind a real clock.
+
+### Allowlist contradiction — allowlist is the hard boundary
+`unknown_service` **dropped** from `escalate_on`. Not on `service_allowlist` → DENY,
+no appeal. Consequence: the **button demo is driven by `amount_anomalous`**, so the
+numbers must make that fire (see policy.json).
+
+### T6 — OpenAI
+`openai` 7.15.0, tool-calling loop. Single tool: `request_payment`.
+
+### T1 — injection detection: deterministic regex, rules live in policy.json
+Scans the **raw merchant response body before the agent sees it**. Crude on purpose.
+The claim is "detection is deterministic and outside the model", not "we catch everything".
+
+### T7 — timeout: agent told `ESCALATION_TIMEOUT`, no retry affordance
+### T4 — four scenes: autonomous → button → injection → drip
+
+---
+
+## 2. Number design (this is why the demo works)
+
+```
+max_tx_hbar        0.10   hard DENY above
+soft_limit_hbar    0.05   ESCALATE above  → this drives the button
+daily_budget_hbar  0.30   rolling 24h aggregate
+
+scene 1  0.02  → ALLOW      (below soft limit, settles autonomously)
+scene 2  0.08  → ESCALATE   (soft<0.08<max) → OLED → press → settles
+scene 3  0.05  → DENY       NOT_ALLOWLISTED + injection_detected
+scene 4  5 × 0.08 = 0.40 vs 0.30 budget → 3 settle, 4th DENY OVER_DAILY_BUDGET
+```
+
+**Evaluation order is itself a security property — say it in the pitch:**
+hard denials first (allowlist → per-tx limit → aggregate budget), *then* escalation
+signals. A request that is both anomalous and over budget must DENY, never escalate —
+otherwise a human can be socially engineered into approving what policy already forbids.
+
+---
+
+## 3. Phases
+
+| Phase | Deliverable | Gate |
+|---|---|---|
+| 0 | repo, deps, config, schema | `npm run dev` boots, /health 200 |
+| 1 | rails: one real HBAR payment | HashScan SUCCESS receipt |
+| 2 | policy engine + boundary + reset | tests green, DENY = 0 network |
+| 3 | dashboard (SSE) | 2 tabs live, no refresh |
+| 4 | ESP32 escalation loop | tamper/replay/swap pass |
+| 5 | adversary: injection + drip | both denied, visible reason |
+| 6 | rehearsal | 3 clean runs + video |
+
+Phase 1 must be first and must finish Day 1. **If it slips past midday, reassess scope
+— do not push on.** The policy engine (Phase 2) has zero network dependencies: if the
+facilitator is down, build that while you wait.
+
+**Rework warning:** decide the HMAC canonical string once, on paper, before writing
+either side — it is implemented twice, in two languages.
+`intent_id|service|recipient|amount|reason|expires_at`
+
+---
+
+## 4. Commit sequence
+
+```
+p0  chore: scaffold agentpay workspace and toolchain
+p0  chore: add sqlite schema and typed config loader
+p1  feat: x402-gated merchant endpoint on hedera testnet
+p1  feat: x402 hedera payment client
+p2  feat: deterministic policy engine with injected clock
+p2  test: cover policy branches, boundaries and drip aggregate
+p2  feat: sqlite ledger with rolling-24h spend window
+p2  feat: broker wiring agent to policy without settlement access
+p2  feat: openai agent loop with single request_payment tool
+p3  feat: sse event bus and dashboard state endpoints
+p3  feat: react dashboard with budget, feed, intent and policy panels
+p4  feat: hmac-signed single-use payment intents
+p4  feat: device poll and approve endpoints with replay defence
+p4  feat: esp32 firmware for intent display and physical approval
+p5  feat: malicious merchant endpoints with injection and drip
+p5  feat: deterministic injection scanner in signal layer
+p6  docs: demo script and runbook
+```
+
+Each ends with:
+```
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+```
