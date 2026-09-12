@@ -1,4 +1,4 @@
-import type { Snapshot } from "../useAgentPay";
+import type { Snapshot } from "../store/useAgentPayStore.js";
 
 /** Renders policy.json read-only: "policy is data, not code" made visible, not claimed. */
 export function PolicyPanel({ state }: { state: Snapshot }) {

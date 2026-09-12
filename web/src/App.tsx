@@ -1,61 +1,53 @@
-import { useState } from "react";
-import { useAgentPay } from "./useAgentPay";
-import { BudgetPanel } from "./panels/BudgetPanel";
-import { DecisionFeed } from "./panels/DecisionFeed";
-import { PendingIntent } from "./panels/PendingIntent";
-import { PolicyPanel } from "./panels/PolicyPanel";
+import { NavLink, Route, Routes } from "react-router-dom";
+import { LiveFlow } from "./routes/LiveFlow.js";
+import { Decisions } from "./routes/Decisions.js";
+import { Policy } from "./routes/Policy.js";
+import { Device } from "./routes/Device.js";
+import { Attacks } from "./routes/Attacks.js";
+import { Chain } from "./routes/Chain.js";
+
+const NAV_LINKS = [
+  { to: "/", label: "Live Flow", end: true },
+  { to: "/decisions", label: "Decisions" },
+  { to: "/policy", label: "Policy" },
+  { to: "/device", label: "Device" },
+  { to: "/attacks", label: "Attacks" },
+  { to: "/chain", label: "On-Chain" },
+];
 
 function App() {
-  const state = useAgentPay();
-  const [running, setRunning] = useState(false);
-
-  async function runAgent() {
-    setRunning(true);
-    try {
-      await fetch("/api/agent/run", { method: "POST" });
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  async function resetDay() {
-    await fetch("/api/dev/reset-day", { method: "POST" });
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 p-6 text-slate-100">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">AgentPay</h1>
-          <p className="text-sm text-slate-500">Autonomous spend, policy-enforced.</p>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-1 px-6 py-3">
+          <span className="mr-4 text-sm font-bold text-slate-300">AgentPay</span>
+          {NAV_LINKS.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              className={({ isActive }) =>
+                `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                }`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={resetDay}
-            className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
-          >
-            Reset day
-          </button>
-          <button
-            onClick={runAgent}
-            disabled={running || !state}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {running ? "Running..." : "Run agent task"}
-          </button>
-        </div>
-      </header>
+      </nav>
 
-      {!state ? (
-        <p className="text-slate-500">Connecting...</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <BudgetPanel state={state} />
-          <PendingIntent state={state} />
-          <DecisionFeed state={state} />
-          <PolicyPanel state={state} />
-        </div>
-      )}
+      <main className="mx-auto max-w-6xl p-6">
+        <Routes>
+          <Route path="/" element={<LiveFlow />} />
+          <Route path="/decisions" element={<Decisions />} />
+          <Route path="/policy" element={<Policy />} />
+          <Route path="/device" element={<Device />} />
+          <Route path="/attacks" element={<Attacks />} />
+          <Route path="/chain" element={<Chain />} />
+        </Routes>
+      </main>
     </div>
   );
 }

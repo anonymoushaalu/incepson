@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Snapshot } from "../useAgentPay";
+import type { Snapshot } from "../store/useAgentPayStore.js";
 
 export function PendingIntent({ state }: { state: Snapshot }) {
   const intent = state.pendingIntent;

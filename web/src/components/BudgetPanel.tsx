@@ -1,4 +1,4 @@
-import type { Snapshot } from "../useAgentPay";
+import type { Snapshot } from "../store/useAgentPayStore.js";
 
 export function BudgetPanel({ state }: { state: Snapshot }) {
   const pct = Math.min(100, (state.spentWindowHbar / state.policy.daily_budget_hbar) * 100);
