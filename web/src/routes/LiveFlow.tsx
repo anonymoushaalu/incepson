@@ -7,6 +7,7 @@ import { PendingIntent } from "../components/PendingIntent.js";
 import { PolicyPanel } from "../components/PolicyPanel.js";
 import { FlowScene } from "../scene/FlowScene.js";
 import { useWebglSupported } from "../scene/useWebglSupported.js";
+import { LoadingState } from "../components/LoadingState.js";
 
 /**
  * `/` -- the hero page. The 3D enforcement-graph scene renders when WebGL is
@@ -59,7 +60,7 @@ export function LiveFlow() {
       </header>
 
       {!state ? (
-        <p className="text-slate-500">Connecting...</p>
+        <LoadingState />
       ) : (
         <>
           {webglSupported === false && (
