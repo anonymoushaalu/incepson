@@ -5,16 +5,24 @@ import { FlowNode } from "./nodes/FlowNode.js";
 import { FlowEdges } from "./FlowEdges.js";
 import { NodeInspector } from "./NodeInspector.js";
 import { CameraReset } from "./CameraReset.js";
+import { BudgetWall } from "./BudgetWall.js";
+import { Packet } from "./Packet.js";
+import { useFlowEvents } from "./useFlowEvents.js";
 import { useSceneStore } from "../store/useSceneStore.js";
+import { useAgentPayStore } from "../store/useAgentPayStore.js";
 
 /**
  * The <Canvas> root. frameloop="demand": this scene is idle between SSE
  * events and node hover, not a continuously spinning showcase -- rendering
  * only when something invalidates keeps it cheap to leave open in the
- * background across a 5-minute pitch.
+ * background across a 5-minute pitch. Packet.tsx and BudgetWall.tsx each
+ * call invalidate() themselves every frame they're still animating, since
+ * demand mode does not auto-continue a useFrame loop on its own.
  */
 export function FlowScene() {
   const resetCamera = useSceneStore((s) => s.resetCamera);
+  const packets = useFlowEvents();
+  const pendingIntent = useAgentPayStore((s) => s.snapshot?.pendingIntent);
 
   return (
     <div className="relative h-[600px] w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
@@ -33,8 +41,12 @@ export function FlowScene() {
         <directionalLight position={[5, 8, 5]} intensity={0.8} />
 
         <FlowEdges />
+        <BudgetWall />
         {NODES.map((node) => (
-          <FlowNode key={node.id} node={node} />
+          <FlowNode key={node.id} node={node} pulsing={node.id === "device" && !!pendingIntent} />
+        ))}
+        {packets.map((spec) => (
+          <Packet key={spec.id} spec={spec} />
         ))}
 
         <CameraReset />
