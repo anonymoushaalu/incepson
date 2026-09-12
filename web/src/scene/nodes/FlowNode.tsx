@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, invalidate } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { damp } from "maath/easing";
 import type { Mesh } from "three";
@@ -9,13 +9,17 @@ import { useSceneStore } from "../../store/useSceneStore.js";
 /** One node in the enforcement graph. Hover/select feedback (scale) is
  *  driven imperatively in useFrame off useSceneStore -- no library other
  *  than maath's damp ever touches this mesh's transform, per the
- *  layered-separation rule in docs/FRONTEND_PLAN.md. */
-export function FlowNode({ node }: { node: NodeLayout }) {
+ *  layered-separation rule in docs/FRONTEND_PLAN.md.
+ *  `pulsing` (the ESP32 node while an intent awaits approval) breathes via a
+ *  sine-driven emissive intensity, independent of hover/select scale. */
+export function FlowNode({ node, pulsing = false }: { node: NodeLayout; pulsing?: boolean }) {
   const meshRef = useRef<Mesh>(null);
   const [localHover, setLocalHover] = useState(false);
   const selectedNode = useSceneStore((s) => s.selectedNode);
   const selectNode = useSceneStore((s) => s.selectNode);
   const hoverNode = useSceneStore((s) => s.hoverNode);
+  const material = useRef<import("three").MeshStandardMaterial>(null);
+  const clock = useRef(0);
 
   const isSelected = selectedNode === node.id;
 
@@ -25,6 +29,14 @@ export function FlowNode({ node }: { node: NodeLayout }) {
     damp(meshRef.current.scale, "x", targetScale, 0.15, delta);
     damp(meshRef.current.scale, "y", targetScale, 0.15, delta);
     damp(meshRef.current.scale, "z", targetScale, 0.15, delta);
+
+    if (pulsing && material.current) {
+      clock.current += delta;
+      material.current.emissiveIntensity = 0.4 + Math.sin(clock.current * 4) * 0.35;
+      invalidate();
+    } else if (material.current) {
+      material.current.emissiveIntensity = isSelected ? 0.6 : localHover ? 0.3 : 0.1;
+    }
   });
 
   return (
@@ -48,11 +60,7 @@ export function FlowNode({ node }: { node: NodeLayout }) {
         }}
       >
         <boxGeometry args={[1.4, 0.8, 0.4]} />
-        <meshStandardMaterial
-          color={node.color}
-          emissive={node.color}
-          emissiveIntensity={isSelected ? 0.6 : localHover ? 0.3 : 0.1}
-        />
+        <meshStandardMaterial ref={material} color={node.color} emissive={node.color} emissiveIntensity={0.1} />
         {/* Child of the mesh, not a group sibling: it must scale WITH the
             box so the box's growing front face never overtakes it -- a
             sibling at a fixed z-offset gets occluded once the mesh scales

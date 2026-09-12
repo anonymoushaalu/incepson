@@ -60,6 +60,13 @@ interface AgentPayState {
   /** The last decision event, for scene code that wants to react to it once
    *  (spawn a packet) rather than derive it from a diff of recentRequests. */
   lastDecision: DecisionEvent | null;
+  /** Bumped on every decision event, even repeats with identical payloads
+   *  (e.g. two DENYs in a row for the same service/amount). Consumers that
+   *  need to fire exactly once per real event (spawning a 3D packet) should
+   *  diff this, not lastDecision itself -- object identity alone survives a
+   *  JSON round-trip fine, but two decisions can be deep-equal and still be
+   *  two distinct events that must each spawn their own packet. */
+  decisionSeq: number;
 }
 
 interface AgentPayActions {
@@ -75,6 +82,7 @@ export const useAgentPayStore = create<AgentPayState & AgentPayActions>((set, ge
   snapshot: null,
   connected: false,
   lastDecision: null,
+  decisionSeq: 0,
 
   connect: () => {
     if (source) return;
@@ -92,7 +100,7 @@ export const useAgentPayStore = create<AgentPayState & AgentPayActions>((set, ge
       const decision = JSON.parse((ev as MessageEvent).data) as DecisionEvent;
       const prev = get().snapshot;
       if (!prev) {
-        set({ lastDecision: decision });
+        set((state) => ({ lastDecision: decision, decisionSeq: state.decisionSeq + 1 }));
         return;
       }
       const row: RequestRow = {
@@ -108,15 +116,16 @@ export const useAgentPayStore = create<AgentPayState & AgentPayActions>((set, ge
       };
       const spentWindowHbar =
         decision.decision === "ALLOW" ? prev.spentWindowHbar + decision.amountHbar : prev.spentWindowHbar;
-      set({
+      set((state) => ({
         lastDecision: decision,
+        decisionSeq: state.decisionSeq + 1,
         snapshot: {
           ...prev,
           spentWindowHbar,
           remainingHbar: prev.policy.daily_budget_hbar - spentWindowHbar,
           recentRequests: [row, ...prev.recentRequests].slice(0, 50),
         },
-      });
+      }));
     });
 
     source.addEventListener("budget_reset", () => {
