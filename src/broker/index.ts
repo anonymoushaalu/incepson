@@ -23,6 +23,17 @@ export interface BrokerResult {
 // allowlisted service in this MVP, so the recipient is always its account.
 const pendingEscalations = new Map<string, { resolve: (approved: boolean) => void }>();
 
+// Demo-only override for the drip scenario: five sub-soft-limit charges
+// (each individually ALLOW) need a budget small enough that the fifth one
+// crosses it within a single demo run, without shrinking the real
+// policy.json value used by scenes 1-3. null = use policy.daily_budget_hbar.
+// Set via POST /api/dev/demo-budget, cleared by /api/dev/reset-day.
+let demoBudgetOverrideHbar: number | null = null;
+
+export function setDemoBudgetOverride(hbar: number | null): void {
+  demoBudgetOverrideHbar = hbar;
+}
+
 export function resolveEscalation(intentId: string, approved: boolean): boolean {
   const parked = pendingEscalations.get(intentId);
   if (!parked) return false;
@@ -37,11 +48,13 @@ export async function requestPayment(
   now: Date = new Date()
 ): Promise<BrokerResult> {
   const requestId = randomUUID();
+  const effectivePolicy =
+    demoBudgetOverrideHbar === null ? policy : { ...policy, daily_budget_hbar: demoBudgetOverrideHbar };
   const spend = { spent_window_hbar: spentInWindow(now) };
   const history = { settledAmountsForService: settledAmountsForService(req.service) };
-  const signals = evaluateSignals(req.amount_hbar, opts.rawMerchantBody, history, policy);
+  const signals = evaluateSignals(req.amount_hbar, opts.rawMerchantBody, history, effectivePolicy);
 
-  const result = evaluate(req, policy, spend, signals, now);
+  const result = evaluate(req, effectivePolicy, spend, signals, now);
 
   if (result.decision === "DENY") {
     recordRequest({
