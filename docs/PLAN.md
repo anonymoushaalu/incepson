@@ -35,7 +35,58 @@ paymentMiddleware(routes, server, paywallConfig?, paywall?, syncFacilitatorOnSta
 facilitatorClient". It is not — the facilitator client goes to `x402ResourceServer`.
 The scheme takes an optional `{ defaultAssets }`.
 
-**Header is `X-Payment`**, not `X-PAYMENT`.
+**Both the blueprint and the docs-page scrape were wrong about the header name.**
+Verified live against the installed package source
+(`node_modules/@x402/core/dist/esm/chunk-RAWLCYSQ.mjs`) and against a real
+payment on testnet: x402 **v1** sends `X-PAYMENT`; x402 **v2** — what Hedera's
+facilitator actually speaks — sends **`PAYMENT-SIGNATURE`**, and the response
+header is `PAYMENT-REQUIRED` / `PAYMENT-RESPONSE`, not `X-Payment-Response`.
+Never read these header names directly — use `x402HTTPClient` /
+`x402HTTPResourceServer`, which resolve them per-version internally.
+
+**Real payment settled during Phase 1, live-corrected findings:**
+
+1. **Pricing native HBAR requires an explicit atomic `AssetAmount`, not `Money`.**
+   `ExactHederaScheme.defaultMoneyConversion` (server) throws if a Money-string
+   price would resolve to `0.0.0` -- Money/`defaultAssets` only targets HTS
+   tokens. Use `price: { asset: "0.0.0", amount: "<atomic-tinybar-string>" }`.
+   `AssetAmount.amount` is NOT decimal-scaled by the library -- 0.02 HBAR must
+   be written as `"2000000"` (8 decimals), not `"0.02"`.
+2. **The root `@x402/hedera` export is the CLIENT scheme.** The server scheme
+   is only at the `@x402/hedera/exact/server` subpath. Importing
+   `ExactHederaScheme` from the package root on the server silently grabs the
+   client class (which requires a signer, not a config) -- TypeScript catches
+   this as a constructor-arity error, but only if you don't cast it away.
+3. **`x402Client`'s spend controls block any non-default asset by default**,
+   including native HBAR. `new x402Client().register(...)` alone will reject
+   every Hedera HBAR payment with "All payment requirements were rejected by
+   spendControls". Use `x402Client.fromConfig({ schemes, spendControls:
+   { allowedAssets: [{ network, asset: "0.0.0", maxAmountPerPayment:
+   "<atomic>" }] } })`. The cap must also be an atomic integer string.
+4. **`PrivateKey.fromString()` can silently guess the wrong curve.** Verified
+   against a real testnet account: `fromString()` returned a validly-shaped
+   ED25519 key with no error, while the account's actual on-chain key (per
+   the mirror node, `GET /accounts/{id}`) was `ECDSA_SECP256K1`. The mismatched
+   key signs without error and produces a signature the facilitator's verify
+   step rejects (`invalid_exact_hedera_payload_signature_invalid`) -- a
+   failure mode with no client-side symptom until the live payment attempt.
+   Always fetch the account's real key type from the mirror node rather than
+   assume a curve, and parse with the matching `fromStringECDSA` /
+   `fromStringED25519`.
+5. **`@x402/hedera` pins its own nested `@hiero-ledger/sdk`** as a regular
+   (non-peer) dependency. Installing a different top-level version produces
+   two structurally-identical but nominally distinct `PrivateKey` classes and
+   a confusing TS2345 type error. Pin the top-level install to match
+   `@x402/hedera`'s resolved version (`npm ls @hiero-ledger/sdk` after
+   installing `@x402/hedera` to find it) so npm dedupes to one copy.
+6. **`@x402/fetch` is the missing piece for the client side** -- the blueprint
+   never named it. `wrapFetchWithPayment(fetch, client)` is the sanctioned way
+   to get automatic 402-retry-with-payment; the low-level `x402HTTPClient` is
+   for manual control (used here only to extract `getPaymentSettleResponse`
+   after `wrapFetchWithPayment` already paid).
+
+Live proof: https://hashscan.io/testnet/transaction/0.0.9185802-1789208532-496960451
+(SUCCESS, CRYPTOTRANSFER, merchant account credited exactly 2,000,000 tinybar).
 
 ---
 
