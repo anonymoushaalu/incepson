@@ -2,14 +2,15 @@ import "dotenv/config";
 import express from "express";
 import { db } from "./db.js";
 import { agentRouter } from "./routes/agent.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 
 const app = express();
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use(agentRouter);
+app.use(dashboardRouter);
 
-// Phase 3: routes/dashboard.ts
 // Phase 4: routes/device.ts
 
 const port = Number(process.env.PORT ?? 3000);

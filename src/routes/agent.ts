@@ -3,6 +3,7 @@ import { runAgentTask } from "../agent/index.js";
 import { requestPayment } from "../broker/index.js";
 import { payAndFetch } from "../payments/x402.js";
 import { resetBudgetWindow } from "../ledger/index.js";
+import { publish } from "../bus.js";
 import { env } from "../config.js";
 
 export const agentRouter = Router();
@@ -22,24 +23,28 @@ async function settleForService(req: { service: string; amount_hbar: number }) {
 agentRouter.post("/api/agent/run", async (req, res) => {
   const task = typeof req.body?.task === "string" ? req.body.task : "Fetch the current gas price from gas-oracle.local.";
 
-  const { transcript } = await runAgentTask(task, async (args) => {
-    const outcome = await requestPayment(
-      { service: args.service, amount_hbar: args.amount_hbar, reason: args.reason },
-      { settle: settleForService }
-    );
-    return {
-      decision: outcome.result.decision,
-      code: outcome.result.code,
-      explanation: outcome.result.explanation,
-    };
-  });
-
-  res.json({ transcript });
+  try {
+    const { transcript } = await runAgentTask(task, async (args) => {
+      const outcome = await requestPayment(
+        { service: args.service, amount_hbar: args.amount_hbar, reason: args.reason },
+        { settle: settleForService }
+      );
+      return {
+        decision: outcome.result.decision,
+        code: outcome.result.code,
+        explanation: outcome.result.explanation,
+      };
+    });
+    res.json({ transcript });
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : "agent task failed" });
+  }
 });
 
 // Bumps the rolling-24h budget epoch so the demo can be re-run without
 // waiting on a real clock boundary. See docs/PLAN.md T3.
 agentRouter.post("/api/dev/reset-day", (_req, res) => {
   resetBudgetWindow(new Date());
+  publish({ type: "budget_reset" });
   res.json({ ok: true });
 });

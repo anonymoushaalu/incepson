@@ -3,6 +3,7 @@ import { evaluate } from "../policy/engine.js";
 import { evaluateSignals } from "../signals/index.js";
 import { policy } from "../config.js";
 import { spentInWindow, settledAmountsForService, recordRequest, markSettled } from "../ledger/index.js";
+import { publish } from "../bus.js";
 import type { PaymentRequest, PolicyResult } from "../policy/types.js";
 
 // The ONLY caller of policy.evaluate() and the ONLY module besides
@@ -36,6 +37,7 @@ export async function requestPayment(
       settled: false,
       now,
     });
+    publish({ type: "decision", requestId, service: req.service, amountHbar: req.amount_hbar, decision: result.decision, code: result.code, explanation: result.explanation });
     return { requestId, result };
   }
 
@@ -51,6 +53,7 @@ export async function requestPayment(
       settled: false,
       now,
     });
+    publish({ type: "decision", requestId, service: req.service, amountHbar: req.amount_hbar, decision: result.decision, code: result.code, explanation: result.explanation });
     return { requestId, result };
   }
 
@@ -66,5 +69,6 @@ export async function requestPayment(
     txId,
     now,
   });
+  publish({ type: "decision", requestId, service: req.service, amountHbar: req.amount_hbar, decision: result.decision, code: result.code, explanation: result.explanation, txId });
   return { requestId, result, txId };
 }
