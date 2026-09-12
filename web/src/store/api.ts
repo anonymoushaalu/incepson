@@ -12,7 +12,16 @@ export async function fetchState() {
   return res.json();
 }
 
-export async function runAgent(body: { scenario?: string; task?: string }) {
+export interface RunAgentResult {
+  transcript?: string[];
+  /** Present on failure -- e.g. the OpenAI account has no credits. The
+   *  backend returns 502 with this shape; res.ok is false but the body is
+   *  still valid JSON, so callers should check for .error rather than
+   *  relying on res.ok having been inspected here. */
+  error?: string;
+}
+
+export async function runAgent(body: { scenario?: string; task?: string }): Promise<RunAgentResult> {
   const res = await fetch("/api/agent/run", {
     method: "POST",
     headers: { "content-type": "application/json" },
