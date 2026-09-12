@@ -25,6 +25,7 @@ export const env = {
   merchantPort: Number(process.env.MERCHANT_PORT ?? 4001),
   dbPath: process.env.DB_PATH ?? "./agentpay.db",
   maxTxHbar: policy.max_tx_hbar,
+  openaiModel: process.env.OPENAI_MODEL ?? "gpt-5.5",
 };
 
 // Network is a `${string}:${string}` CAIP-2 template type in @x402/core; the
