@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-wal
+*.db-shm
+firmware/agentpay_device/secrets.h
+web/node_modules/
+web/dist/
