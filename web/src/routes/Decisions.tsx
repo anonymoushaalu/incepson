@@ -3,6 +3,7 @@ import { useAgentPayStore } from "../store/useAgentPayStore.js";
 import type { RequestRow } from "../store/useAgentPayStore.js";
 import { Sparkline } from "../components/Sparkline.js";
 import { RequestDrawer } from "../components/RequestDrawer.js";
+import { LoadingState } from "../components/LoadingState.js";
 
 const DECISIONS: RequestRow["decision"][] = ["ALLOW", "ESCALATE", "DENY"];
 
@@ -64,7 +65,7 @@ export function Decisions() {
       </header>
 
       {!snapshot ? (
-        <p className="text-slate-500">Connecting...</p>
+        <LoadingState />
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-700 bg-slate-900 p-4">

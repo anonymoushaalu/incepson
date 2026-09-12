@@ -3,6 +3,7 @@ import { useAgentPayStore } from "../store/useAgentPayStore.js";
 import { fetchChainBalances } from "../store/api.js";
 import type { ChainBalances } from "../store/mock.js";
 import { MockBadge } from "../components/MockBadge.js";
+import { LoadingState } from "../components/LoadingState.js";
 
 /**
  * Settled transactions are derived from the real SSE snapshot's
@@ -36,7 +37,7 @@ export function Chain() {
       </header>
 
       {!snapshot ? (
-        <p className="text-slate-500">Connecting...</p>
+        <LoadingState />
       ) : (
         <div className="space-y-6">
           <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">

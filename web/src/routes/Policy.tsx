@@ -4,6 +4,7 @@ import type { PolicyConfig } from "../store/useAgentPayStore.js";
 import { evaluateClient, isAmountAnomalousClient, detectInjectionClient } from "../policy/evaluate.js";
 import type { PolicyResult } from "../policy/evaluate.js";
 import { MockBadge } from "../components/MockBadge.js";
+import { LoadingState } from "../components/LoadingState.js";
 
 interface Gate {
   id: PolicyResult["gate"];
@@ -80,7 +81,7 @@ export function Policy() {
       </header>
 
       {!snapshot ? (
-        <p className="text-slate-500">Connecting...</p>
+        <LoadingState />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="space-y-3">
