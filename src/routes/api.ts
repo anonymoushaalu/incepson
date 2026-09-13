@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 import { queryRequests, getRequestById, decisionCodeCounts, spentInWindow, settledAmountsForService } from "../ledger/index.js";
 import { listIntents } from "../intents/index.js";
 import { getChainBalances } from "../hedera-mirror.js";
+import { fetchHbarUsdPrice } from "../chainlink-price.js";
 import { policy, env } from "../config.js";
 import { evaluate } from "../policy/engine.js";
 import { evaluateSignals } from "../signals/index.js";
@@ -135,11 +136,13 @@ apiRouter.get("/api/chain/transactions", (_req, res) => {
 });
 
 // GET /api/chain/balances
-// Agent + merchant HBAR balances via the Hedera mirror node, cached 15s.
-// Backs /chain's balance panel.
+// Agent + merchant HBAR balances via the Hedera mirror node, cached 15s,
+// plus a live HBAR/USD price read from Chainlink's real deployed price feed
+// on Hedera testnet (via the Hashio EVM JSON-RPC relay -- see
+// src/chainlink-price.ts), cached 30s. Backs /chain's balance panel.
 apiRouter.get("/api/chain/balances", async (_req, res) => {
-  const balances = await getChainBalances();
-  res.json(balances);
+  const [balances, hbarUsd] = await Promise.all([getChainBalances(), fetchHbarUsdPrice()]);
+  res.json({ ...balances, hbarUsd });
 });
 
 // GET /api/policy/gates

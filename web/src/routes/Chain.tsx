@@ -55,20 +55,41 @@ export function Chain() {
                   <p className="text-lg font-semibold text-slate-100">
                     {balances.agentBalanceHbar != null ? `${balances.agentBalanceHbar.toFixed(2)} HBAR` : "unavailable"}
                   </p>
+                  {balances.agentBalanceHbar != null && balances.hbarUsd != null && (
+                    <p className="text-xs text-slate-500">≈ ${(balances.agentBalanceHbar * balances.hbarUsd).toFixed(2)}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Merchant ({balances.merchantAccountId || "not configured"})</p>
                   <p className="text-lg font-semibold text-slate-100">
                     {balances.merchantBalanceHbar != null ? `${balances.merchantBalanceHbar.toFixed(2)} HBAR` : "unavailable"}
                   </p>
+                  {balances.merchantBalanceHbar != null && balances.hbarUsd != null && (
+                    <p className="text-xs text-slate-500">≈ ${(balances.merchantBalanceHbar * balances.hbarUsd).toFixed(2)}</p>
+                  )}
                 </div>
               </div>
             ) : (
               <LoadingState label="Fetching balances from the Hedera mirror node..." />
             )}
             <p className="mt-2 text-xs text-slate-600">
-              Live from{" "}
+              Balances live from{" "}
               <code className="rounded bg-slate-950 px-1 py-0.5">testnet.mirrornode.hedera.com</code>, cached 15s server-side.
+              {balances?.hbarUsd != null && (
+                <>
+                  {" "}
+                  USD conversion at ${balances.hbarUsd.toFixed(4)}/HBAR, live from{" "}
+                  <a
+                    href="https://data.chain.link/feeds/hedera/hedera/hbar-usd"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-slate-400"
+                  >
+                    Chainlink's HBAR/USD feed on Hedera testnet
+                  </a>
+                  , cached 30s server-side.
+                </>
+              )}
             </p>
           </div>
 

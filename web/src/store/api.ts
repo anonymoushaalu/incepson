@@ -151,6 +151,9 @@ export interface ChainBalances {
   agentBalanceHbar: number | null;
   merchantAccountId: string;
   merchantBalanceHbar: number | null;
+  /** Live HBAR/USD price from Chainlink's deployed feed on Hedera testnet
+   *  (read via the Hashio EVM JSON-RPC relay), null if the RPC call failed. */
+  hbarUsd: number | null;
 }
 
 // GET /api/chain/balances -- a live Hedera mirror-node lookup, cached 15s server-side.
