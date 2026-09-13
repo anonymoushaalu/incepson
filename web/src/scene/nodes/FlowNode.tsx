@@ -66,7 +66,15 @@ export function FlowNode({ node, pulsing = false }: { node: NodeLayout; pulsing?
             sibling at a fixed z-offset gets occluded once the mesh scales
             past that offset (found live via a headless-Chrome screenshot
             during A3; the label vanished on select before this fix). */}
-        <Text position={[0, 0, 0.21]} fontSize={0.18} color="#0f172a" anchorX="center" anchorY="middle" maxWidth={1.2}>
+        <Text
+          position={[0, 0, 0.21]}
+          fontSize={0.18}
+          color="#0f172a"
+          anchorX="center"
+          anchorY="middle"
+          maxWidth={1.2}
+          onSync={() => invalidate()}
+        >
           {node.label}
         </Text>
       </mesh>

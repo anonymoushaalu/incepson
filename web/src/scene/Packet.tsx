@@ -69,7 +69,21 @@ export function Packet({ spec }: { spec: PacketSpec }) {
         <meshStandardMaterial color={spec.color} emissive={spec.color} emissiveIntensity={1.2} toneMapped={false} metalness={0.6} roughness={0.2} />
       </mesh>
       <pointLight color={spec.color} intensity={2.5} distance={2.5} decay={2} />
-      <Text position={[0, 0.32, 0]} fontSize={0.16} color={spec.color} anchorX="center" anchorY="middle" outlineWidth={0.008} outlineColor="#020617">
+      <Text
+        position={[0, 0.32, 0]}
+        fontSize={0.16}
+        color={spec.color}
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.008}
+        outlineColor="#020617"
+        // troika-three-text lays out glyphs asynchronously; under
+        // frameloop="demand" the canvas can have already painted the frame
+        // this mounted in before the glyph mesh is ready, leaving the label
+        // invisible until something else happens to invalidate again. This
+        // re-requests a frame the moment layout actually finishes.
+        onSync={() => invalidate()}
+      >
         {spec.amountHbar.toFixed(4)}
       </Text>
     </group>
