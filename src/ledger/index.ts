@@ -88,3 +88,65 @@ export function recentRequests(limit = 50): PaymentRequestRow[] {
     .prepare(`SELECT * FROM payment_requests ORDER BY created_at DESC LIMIT ?`)
     .all(limit) as PaymentRequestRow[];
 }
+
+export interface RequestFilters {
+  decision?: Decision;
+  code?: string;
+  service?: string;
+  since?: string; // ISO8601, inclusive
+  limit?: number;
+  offset?: number;
+}
+
+/** Backs GET /api/requests. Filters are all optional and AND-ed together;
+ *  paginated with limit/offset rather than a cursor since the ledger is a
+ *  demo-scale SQLite table, not something that needs keyset pagination. */
+export function queryRequests(filters: RequestFilters = {}): { rows: PaymentRequestRow[]; total: number } {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+
+  if (filters.decision) {
+    clauses.push("decision = @decision");
+    params.decision = filters.decision;
+  }
+  if (filters.code) {
+    clauses.push("decision_code = @code");
+    params.code = filters.code;
+  }
+  if (filters.service) {
+    clauses.push("service = @service");
+    params.service = filters.service;
+  }
+  if (filters.since) {
+    clauses.push("created_at >= @since");
+    params.since = filters.since;
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 500);
+  const offset = Math.max(filters.offset ?? 0, 0);
+
+  const rows = db
+    .prepare(`SELECT * FROM payment_requests ${where} ORDER BY created_at DESC LIMIT @limit OFFSET @offset`)
+    .all({ ...params, limit, offset }) as PaymentRequestRow[];
+
+  const { total } = db.prepare(`SELECT COUNT(*) AS total FROM payment_requests ${where}`).get(params) as {
+    total: number;
+  };
+
+  return { rows, total };
+}
+
+export function getRequestById(id: string): PaymentRequestRow | undefined {
+  return db.prepare(`SELECT * FROM payment_requests WHERE id = ?`).get(id) as PaymentRequestRow | undefined;
+}
+
+/** Per-decision-code counts across every recorded request. Backs GET
+ *  /api/policy/gates -- lets /policy show how many times each gate has
+ *  actually fired, not just the gate's static description. */
+export function decisionCodeCounts(): Record<string, number> {
+  const rows = db
+    .prepare(`SELECT decision_code, COUNT(*) AS n FROM payment_requests GROUP BY decision_code`)
+    .all() as { decision_code: string; n: number }[];
+  return Object.fromEntries(rows.map((r) => [r.decision_code, r.n]));
+}
