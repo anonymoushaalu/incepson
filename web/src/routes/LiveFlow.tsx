@@ -60,10 +60,12 @@ export function LiveFlow() {
 
   return (
     <div>
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Live Flow</h1>
-          <p className="text-sm text-slate-500">Autonomous spend, policy-enforced.</p>
+          <h1 className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-xl font-bold text-transparent">
+            Live Flow
+          </h1>
+          <p className="text-sm text-slate-400">Autonomous spend, policy-enforced.</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -72,13 +74,9 @@ export function LiveFlow() {
           >
             Reset day
           </button>
-          <button
-            onClick={handleRunAgent}
-            disabled={running || !state}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
+          <GlowButton tone="emerald" onClick={handleRunAgent} disabled={running || !state}>
             {running ? "Running..." : "Run agent task"}
-          </button>
+          </GlowButton>
         </div>
       </header>
 
@@ -86,6 +84,52 @@ export function LiveFlow() {
         <LoadingState />
       ) : (
         <>
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4 backdrop-blur">
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-semibold text-slate-200">Demo: one-click pass / fail</p>
+              <p className="text-xs text-slate-500">
+                Real broker + settlement path, no LLM required. Pass settles on Hedera; fail is refused before any
+                network activity.
+              </p>
+            </div>
+            <MockBadge label="no LLM" />
+            <GlowButton tone="emerald" glow onClick={() => handleRunDemo("pass")} disabled={demoRunning !== null}>
+              {demoRunning === "pass" ? "Running..." : "Run pass case"}
+            </GlowButton>
+            <GlowButton tone="red" onClick={() => handleRunDemo("fail")} disabled={demoRunning !== null}>
+              {demoRunning === "fail" ? "Running..." : "Run fail case"}
+            </GlowButton>
+          </div>
+
+          {demoResult && (
+            <div
+              className={`mb-4 rounded-lg border p-3 text-sm ${
+                demoResult.error
+                  ? "border-red-800 bg-red-950/30 text-red-300"
+                  : demoResult.txId
+                    ? "border-emerald-800 bg-emerald-950/30 text-emerald-300"
+                    : "border-slate-700 bg-slate-900 text-slate-300"
+              }`}
+            >
+              {demoResult.transcript?.map((line, i) => (
+                <p key={i} className="font-mono text-xs">
+                  {line}
+                </p>
+              ))}
+              {demoResult.txId && (
+                <a
+                  href={`https://hashscan.io/testnet/transaction/${demoResult.txId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block text-xs underline"
+                >
+                  View settlement on HashScan →
+                </a>
+              )}
+              {demoResult.error && <p className="text-xs">{demoResult.error}</p>}
+            </div>
+          )}
+
           {webglSupported === false && (
             <p className="mb-4 rounded-md border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs text-amber-400">
               WebGL is unavailable in this browser — showing the data panels only.
