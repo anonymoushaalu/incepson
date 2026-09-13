@@ -35,12 +35,38 @@ export interface IntentRow {
   status: "PENDING" | "APPROVED" | "EXPIRED" | "CONSUMED";
 }
 
+export interface IntentHistoryRow {
+  intent_id: string;
+  request_id: string;
+  service: string;
+  recipient: string;
+  amount_hbar: number;
+  reason: string;
+  expires_at: string;
+  hmac: string;
+  status: "PENDING" | "APPROVED" | "EXPIRED" | "CONSUMED";
+  consumed_at: string | null;
+}
+
+export interface GateCounts {
+  allowlist: number;
+  tx_limit: number;
+  daily_budget: number;
+  injection: number;
+  anomaly: number;
+  allow: number;
+}
+
 export interface Snapshot {
   policy: PolicyConfig;
   spentWindowHbar: number;
   remainingHbar: number;
   recentRequests: RequestRow[];
   pendingIntent: IntentRow | null;
+  /** Added in Part B (B3): a cold page load needs one request instead of
+   *  six -- these used to each need their own endpoint fetch on mount. */
+  intentHistory: IntentHistoryRow[];
+  gateCounts: GateCounts;
 }
 
 export type DecisionEvent = {

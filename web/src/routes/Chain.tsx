@@ -1,21 +1,28 @@
 import { useEffect, useState } from "react";
 import { useAgentPayStore } from "../store/useAgentPayStore.js";
-import { fetchChainBalances } from "../store/api.js";
-import type { ChainBalances } from "../store/mock.js";
-import { MockBadge } from "../components/MockBadge.js";
+import { fetchChainBalances, fetchChainTransactions } from "../store/api.js";
+import type { ChainBalances } from "../store/api.js";
 import { LoadingState } from "../components/LoadingState.js";
 
+interface ChainTransaction {
+  tx_id: string;
+  amount_hbar: number;
+  service: string;
+  created_at: string;
+  hashscan_url: string;
+}
+
 /**
- * Settled transactions are derived from the real SSE snapshot's
- * recentRequests (every row that has a tx_id) -- not mocked, since the
- * backend already carries this data. Only account balances are mocked: a
- * real balance fetch needs a Hedera mirror-node call Part B has not added
- * yet (GET /api/chain/balances, see docs/FRONTEND_PLAN.md).
+ * Real data throughout: settled transactions come from GET
+ * /api/chain/transactions, balances from GET /api/chain/balances (a live
+ * Hedera mirror-node lookup, cached server-side 15s). Both landed in Part B
+ * -- this page no longer has a mocked section.
  */
 export function Chain() {
   const connect = useAgentPayStore((s) => s.connect);
   const snapshot = useAgentPayStore((s) => s.snapshot);
   const [balances, setBalances] = useState<ChainBalances | null>(null);
+  const [transactions, setTransactions] = useState<ChainTransaction[] | null>(null);
 
   useEffect(() => {
     connect();
@@ -23,11 +30,10 @@ export function Chain() {
 
   useEffect(() => {
     fetchChainBalances().then(setBalances);
-  }, []);
+    fetchChainTransactions().then(setTransactions);
+  }, [snapshot?.recentRequests.length]); // refetch after each new decision
 
-  const requests = snapshot?.recentRequests ?? [];
-  const settled = requests.filter((r) => r.tx_id);
-  const denied = requests.filter((r) => r.decision === "DENY");
+  const denied = (snapshot?.recentRequests ?? []).filter((r) => r.decision === "DENY");
 
   return (
     <div>
@@ -41,50 +47,52 @@ export function Chain() {
       ) : (
         <div className="space-y-6">
           <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Account balances</h2>
-              <MockBadge />
-            </div>
+            <h2 className="mb-2 text-sm font-medium text-slate-400 uppercase tracking-wide">Account balances</h2>
             {balances ? (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-slate-500">Agent ({balances.agentAccountId})</p>
-                  <p className="text-lg font-semibold text-slate-100">{balances.agentBalanceHbar.toFixed(2)} HBAR</p>
+                  <p className="text-xs text-slate-500">Agent ({balances.agentAccountId || "not configured"})</p>
+                  <p className="text-lg font-semibold text-slate-100">
+                    {balances.agentBalanceHbar != null ? `${balances.agentBalanceHbar.toFixed(2)} HBAR` : "unavailable"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Merchant ({balances.merchantAccountId})</p>
-                  <p className="text-lg font-semibold text-slate-100">{balances.merchantBalanceHbar.toFixed(2)} HBAR</p>
+                  <p className="text-xs text-slate-500">Merchant ({balances.merchantAccountId || "not configured"})</p>
+                  <p className="text-lg font-semibold text-slate-100">
+                    {balances.merchantBalanceHbar != null ? `${balances.merchantBalanceHbar.toFixed(2)} HBAR` : "unavailable"}
+                  </p>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">
-                Not wired to the Hedera mirror node yet — check the account balances directly:
-              </p>
+              <LoadingState label="Fetching balances from the Hedera mirror node..." />
             )}
             <p className="mt-2 text-xs text-slate-600">
-              Verify manually:{" "}
-              <code className="rounded bg-slate-950 px-1 py-0.5">
-                curl https://testnet.mirrornode.hedera.com/api/v1/accounts/&lt;id&gt;
-              </code>
+              Live from{" "}
+              <code className="rounded bg-slate-950 px-1 py-0.5">testnet.mirrornode.hedera.com</code>, cached 15s server-side.
             </p>
           </div>
 
           <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
             <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">
-              Settled transactions ({settled.length})
+              Settled transactions ({transactions?.length ?? 0})
             </h2>
-            {settled.length === 0 ? (
+            {!transactions ? (
+              <LoadingState label="Loading transactions..." />
+            ) : transactions.length === 0 ? (
               <p className="text-sm text-slate-500">Nothing has settled yet.</p>
             ) : (
               <ul className="space-y-2">
-                {settled.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between rounded-md border border-slate-800 px-3 py-2 text-sm">
+                {transactions.map((r) => (
+                  <li
+                    key={r.tx_id}
+                    className="flex items-center justify-between rounded-md border border-slate-800 px-3 py-2 text-sm"
+                  >
                     <div>
                       <span className="font-mono text-slate-300">{r.service}</span>
                       <span className="ml-2 text-slate-500">{r.amount_hbar.toFixed(4)} HBAR</span>
                     </div>
                     <a
-                      href={`https://hashscan.io/testnet/transaction/${r.tx_id}`}
+                      href={r.hashscan_url}
                       target="_blank"
                       rel="noreferrer"
                       className="text-emerald-400 underline hover:text-emerald-300"

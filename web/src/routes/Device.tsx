@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAgentPayStore } from "../store/useAgentPayStore.js";
-import { approveDevice } from "../store/api.js";
+import { approveDevice, simulateApprove } from "../store/api.js";
 import { OledMirror } from "../components/OledMirror.js";
 import type { OledState } from "../components/OledMirror.js";
+import { MockBadge } from "../components/MockBadge.js";
 
 interface CheckResult {
   label: string;
@@ -82,6 +83,20 @@ export function Device() {
     }
   }
 
+  async function handleSimulateApprove() {
+    if (!pendingIntent) return;
+    setRunning(true);
+    try {
+      const result = await simulateApprove(pendingIntent.intent_id);
+      setChecks((prev) => [
+        { label: "Approve (simulated)", ok: result.ok === true, detail: JSON.stringify(result) },
+        ...prev,
+      ]);
+    } finally {
+      setRunning(false);
+    }
+  }
+
   return (
     <div>
       <header className="mb-6">
@@ -106,6 +121,16 @@ export function Device() {
                 {pendingIntent.service} — {pendingIntent.amount_hbar.toFixed(4)} HBAR
               </p>
               <p className="mt-1 font-mono text-xs text-amber-600">intent_id: {pendingIntent.intent_id}</p>
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={handleSimulateApprove}
+                  disabled={running}
+                  className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+                >
+                  Approve
+                </button>
+                <MockBadge label="simulated -- no physical button" />
+              </div>
             </div>
           )}
         </div>

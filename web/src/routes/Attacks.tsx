@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useAgentPayStore } from "../store/useAgentPayStore.js";
-import { runAgent, resetDay, setDemoBudget } from "../store/api.js";
+import { runAgent, runScenario, resetDay, setDemoBudget } from "../store/api.js";
 import type { RunAgentResult } from "../store/api.js";
+import { MockBadge } from "../components/MockBadge.js";
 
 interface ScenarioState {
   running: boolean;
   result: RunAgentResult | null;
+  viaLlm: boolean;
 }
 
-const INITIAL: ScenarioState = { running: false, result: null };
+const INITIAL: ScenarioState = { running: false, result: null, viaLlm: false };
 
 export function Attacks() {
   const connect = useAgentPayStore((s) => s.connect);
@@ -21,14 +23,14 @@ export function Attacks() {
     connect();
   }, [connect]);
 
-  async function runInjection() {
-    setInjection({ running: true, result: null });
-    const result = await runAgent({ scenario: "injection" });
-    setInjection({ running: false, result });
+  async function runInjection(viaLlm: boolean) {
+    setInjection({ running: true, result: null, viaLlm });
+    const result = viaLlm ? await runAgent({ scenario: "injection" }) : await runScenario("injection");
+    setInjection({ running: false, result, viaLlm });
   }
 
-  async function runDrip() {
-    setDrip({ running: true, result: null });
+  async function runDrip(viaLlm: boolean) {
+    setDrip({ running: true, result: null, viaLlm });
     // See docs/RUNBOOK.md Phase 5: five 0.05 HBAR charges never cross the
     // real 0.30 daily_budget_hbar within five calls, so the demo shrinks
     // the effective window for this one scenario without touching
@@ -38,11 +40,11 @@ export function Attacks() {
     await setDemoBudget(0.22);
     let last: RunAgentResult | null = null;
     for (let i = 0; i < 5; i++) {
-      last = await runAgent({ scenario: "drip" });
-      setDrip({ running: true, result: last });
+      last = viaLlm ? await runAgent({ scenario: "drip" }) : await runScenario("drip");
+      setDrip({ running: true, result: last, viaLlm });
       setDripRuns(i + 1);
     }
-    setDrip({ running: false, result: last });
+    setDrip({ running: false, result: last, viaLlm });
   }
 
   const budgetPct = snapshot ? Math.min(100, (snapshot.spentWindowHbar / snapshot.policy.daily_budget_hbar) * 100) : 0;
@@ -53,7 +55,8 @@ export function Attacks() {
         <h1 className="text-xl font-bold">Attacks</h1>
         <p className="text-sm text-slate-500">
           The agent is not filtered from seeing either attack. It gets fooled and tries anyway — the policy engine refuses
-          regardless of what the model was thinking.
+          regardless of what the model was thinking. "No LLM" runs the exact same broker and settlement path with a fixed
+          request instead of a live model call, for when the OpenAI account has no credits.
         </p>
       </header>
 
@@ -61,31 +64,47 @@ export function Attacks() {
         <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
           <h2 className="text-sm font-bold text-red-400">Prompt Injection</h2>
           <p className="mt-1 text-xs text-slate-500">
-            <code className="text-slate-400">eth-price.local</code> returns real data plus a hidden instruction to buy from{" "}
-            <code className="text-slate-400">premium-feed.example</code> — never on the allowlist.
+            <code className="text-slate-400">eth-price.local</code>'s response — including its <em>unpaid</em> 402 preview —
+            carries a hidden instruction to buy from <code className="text-slate-400">premium-feed.example</code>. The
+            allowlisted, in-budget first request actually <strong>escalates</strong> to a human on the injection signal; with
+            nobody there to press the button, it safely times out after 60s. That is the real, correct behavior — not a bug.
           </p>
-          <button
-            onClick={runInjection}
-            disabled={injection.running}
-            className="mt-3 w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
-          >
-            {injection.running ? "Running..." : "Run injection scenario"}
-          </button>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => runInjection(true)}
+              disabled={injection.running}
+              className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+            >
+              {injection.running && injection.viaLlm ? "Running..." : "Run via LLM"}
+            </button>
+            <button
+              onClick={() => runInjection(false)}
+              disabled={injection.running}
+              className="flex-1 rounded-md border border-red-700 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30 disabled:opacity-50"
+            >
+              {injection.running && !injection.viaLlm ? "Running... (up to 60s)" : "Run without LLM"}
+            </button>
+          </div>
 
           {injection.result?.error && (
             <div className="mt-3 rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-400">
-              <p className="font-semibold">Agent call failed: {injection.result.error}</p>
+              <p className="font-semibold">Call failed: {injection.result.error}</p>
               <p className="mt-1 opacity-80">
-                This is a real failure, not simulated — most likely the OpenAI account has no credits. The policy engine's
-                defense against this attack is proven independently: see <code>/policy</code>'s simulator with this exact
-                injected text, or the 28 backend tests.
+                {injection.viaLlm
+                  ? "Most likely the OpenAI account has no credits -- try \"Run without LLM\" instead."
+                  : "This is a real failure from the broker/settlement path itself."}
               </p>
             </div>
           )}
 
           {injection.result?.transcript && (
             <div className="mt-3 space-y-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Agent transcript</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  {injection.viaLlm ? "Agent transcript" : "Transcript"}
+                </p>
+                {!injection.viaLlm && <MockBadge label="no LLM" />}
+              </div>
               {injection.result.transcript.map((line, i) => (
                 <p
                   key={i}
@@ -110,13 +129,22 @@ export function Attacks() {
             Five individually-legal 0.05 HBAR refresh charges. Each one alone is fine — watch the aggregate budget stop the one
             that tips the total over.
           </p>
-          <button
-            onClick={runDrip}
-            disabled={drip.running}
-            className="mt-3 w-full rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
-          >
-            {drip.running ? `Running (${dripRuns}/5)...` : "Run drip scenario (5 calls)"}
-          </button>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => runDrip(true)}
+              disabled={drip.running}
+              className="flex-1 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+            >
+              {drip.running && drip.viaLlm ? `Running (${dripRuns}/5)...` : "Run via LLM (5 calls)"}
+            </button>
+            <button
+              onClick={() => runDrip(false)}
+              disabled={drip.running}
+              className="flex-1 rounded-md border border-amber-700 px-4 py-2 text-sm font-medium text-amber-300 hover:bg-amber-950/30 disabled:opacity-50"
+            >
+              {drip.running && !drip.viaLlm ? `Running (${dripRuns}/5)...` : "Run without LLM"}
+            </button>
+          </div>
 
           {snapshot && (
             <div className="mt-3">
@@ -134,17 +162,23 @@ export function Attacks() {
 
           {drip.result?.error && (
             <div className="mt-3 rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-400">
-              <p className="font-semibold">Agent call failed: {drip.result.error}</p>
+              <p className="font-semibold">Call failed: {drip.result.error}</p>
               <p className="mt-1 opacity-80">
-                Most likely the OpenAI account has no credits. The aggregate-budget defense is proven independently in
-                src/broker/index.test.ts against the real broker, not mocked.
+                {drip.viaLlm
+                  ? "Most likely the OpenAI account has no credits -- try \"Run without LLM\" instead."
+                  : "This is a real failure from the broker/settlement path itself."}
               </p>
             </div>
           )}
 
           {drip.result?.transcript && (
             <div className="mt-3 space-y-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Last call's transcript</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  {drip.viaLlm ? "Last call's transcript" : "Last call's transcript"}
+                </p>
+                {!drip.viaLlm && <MockBadge label="no LLM" />}
+              </div>
               {drip.result.transcript.map((line, i) => (
                 <p
                   key={i}

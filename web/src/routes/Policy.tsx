@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { useAgentPayStore } from "../store/useAgentPayStore.js";
 import type { PolicyConfig } from "../store/useAgentPayStore.js";
-import { evaluateClient, isAmountAnomalousClient, detectInjectionClient } from "../policy/evaluate.js";
-import type { PolicyResult } from "../policy/evaluate.js";
-import { MockBadge } from "../components/MockBadge.js";
+import { simulatePolicy } from "../store/api.js";
+import type { SimulateResult } from "../store/api.js";
 import { LoadingState } from "../components/LoadingState.js";
 
 interface Gate {
-  id: PolicyResult["gate"];
+  id: string;
   title: string;
   description: (config: PolicyConfig) => string;
+  countKey: string;
 }
 
 const GATES: Gate[] = [
@@ -17,26 +17,31 @@ const GATES: Gate[] = [
     id: "allowlist",
     title: "1. Service allowlist",
     description: (c) => `Unconditional boundary, no appeal. Allowed: ${c.service_allowlist.join(", ")}`,
+    countKey: "allowlist",
   },
   {
     id: "tx_limit",
     title: "2. Per-transaction limit",
     description: (c) => `Denies any single request over ${c.max_tx_hbar} HBAR.`,
+    countKey: "tx_limit",
   },
   {
     id: "daily_budget",
     title: "3. Aggregate daily budget",
     description: (c) => `Denies if cumulative spend would exceed ${c.daily_budget_hbar} HBAR (${c.budget_window}). Defeats the drip attack.`,
+    countKey: "daily_budget",
   },
   {
     id: "injection",
     title: "4. Injection signal",
     description: () => "Escalates if the merchant response matches a deterministic injection pattern.",
+    countKey: "injection",
   },
   {
     id: "anomaly",
     title: "5. Amount anomaly",
     description: (c) => `Escalates if the amount is above the soft limit (${c.soft_limit_hbar} HBAR).`,
+    countKey: "anomaly",
   },
 ];
 
@@ -46,32 +51,43 @@ export function Policy() {
 
   const [service, setService] = useState("gas-oracle.local");
   const [amount, setAmount] = useState("0.02");
-  const [spentSoFar, setSpentSoFar] = useState("0");
   const [merchantBody, setMerchantBody] = useState("");
-  const [result, setResult] = useState<PolicyResult | null>(null);
+  const [result, setResult] = useState<SimulateResult | null>(null);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     connect();
   }, [connect]);
 
-  function runSimulation() {
-    if (!snapshot) return;
+  async function runSimulation() {
     const amountHbar = Number(amount);
-    const spentHbar = Number(spentSoFar);
-    if (!Number.isFinite(amountHbar) || !Number.isFinite(spentHbar)) return;
-
-    const injection_detected = merchantBody.trim() ? detectInjectionClient(merchantBody, snapshot.policy) : false;
-    const amount_anomalous = isAmountAnomalousClient(amountHbar, snapshot.policy);
-
-    setResult(
-      evaluateClient(
-        { service, amount_hbar: amountHbar },
-        snapshot.policy,
-        { spent_window_hbar: spentHbar },
-        { injection_detected, amount_anomalous }
-      )
-    );
+    if (!Number.isFinite(amountHbar)) return;
+    setRunning(true);
+    try {
+      const r = await simulatePolicy(service, amountHbar, merchantBody.trim() || undefined);
+      setResult(r);
+    } finally {
+      setRunning(false);
+    }
   }
+
+  const gateForResult = (code?: string): string | undefined => {
+    switch (code) {
+      case "NOT_ALLOWLISTED":
+        return "allowlist";
+      case "OVER_TX_LIMIT":
+        return "tx_limit";
+      case "OVER_DAILY_BUDGET":
+        return "daily_budget";
+      case "INJECTION_DETECTED":
+        return "injection";
+      case "AMOUNT_ANOMALOUS":
+        return "anomaly";
+      default:
+        return undefined;
+    }
+  };
+  const resultGate = gateForResult(result?.code);
 
   return (
     <div>
@@ -89,38 +105,49 @@ export function Policy() {
               <div
                 key={gate.id}
                 className={`rounded-lg border p-4 transition-colors ${
-                  result?.gate === gate.id
-                    ? result.decision === "DENY"
+                  resultGate === gate.id
+                    ? result?.decision === "DENY"
                       ? "border-red-600 bg-red-950/30"
                       : "border-amber-600 bg-amber-950/30"
                     : "border-slate-700 bg-slate-900"
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold text-slate-200">{gate.title}</h3>
-                  {i < 3 && <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] uppercase text-slate-400">hard deny</span>}
+                  <div className="flex items-center gap-2">
+                    {snapshot.gateCounts && (
+                      <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+                        {snapshot.gateCounts[gate.countKey as keyof typeof snapshot.gateCounts] ?? 0} fired
+                      </span>
+                    )}
+                    {i < 3 && <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] uppercase text-slate-400">hard deny</span>}
+                  </div>
                 </div>
                 <p className="mt-1 text-sm text-slate-400">{gate.description(snapshot.policy)}</p>
               </div>
             ))}
             <div
               className={`rounded-lg border p-4 ${
-                result?.gate === "allow" ? "border-emerald-600 bg-emerald-950/30" : "border-slate-700 bg-slate-900"
+                result?.decision === "ALLOW" ? "border-emerald-600 bg-emerald-950/30" : "border-slate-700 bg-slate-900"
               }`}
             >
-              <h3 className="text-sm font-semibold text-emerald-400">✓ Passes all gates → ALLOW</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-emerald-400">✓ Passes all gates → ALLOW</h3>
+                {snapshot.gateCounts && (
+                  <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+                    {snapshot.gateCounts.allow ?? 0} settled
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Simulate a request</h2>
-                <MockBadge label="client-side port" />
-              </div>
+              <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">Simulate a request</h2>
               <p className="mb-3 text-xs text-slate-600">
-                Runs the same logic as <code className="text-slate-500">src/policy/engine.ts</code>, ported to the browser. The
-                server's own copy is authoritative for every real decision.
+                Runs the real server-side <code className="text-slate-500">evaluate()</code> against a hypothetical request —
+                never recorded, never settled. Uses the actual current spend in the rolling window.
               </p>
 
               <div className="space-y-3">
@@ -141,14 +168,6 @@ export function Policy() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-slate-500">Already spent in window (HBAR)</label>
-                  <input
-                    value={spentSoFar}
-                    onChange={(e) => setSpentSoFar(e.target.value)}
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200"
-                  />
-                </div>
-                <div>
                   <label className="mb-1 block text-xs text-slate-500">Merchant response body (optional, tests injection)</label>
                   <textarea
                     value={merchantBody}
@@ -160,9 +179,10 @@ export function Policy() {
                 </div>
                 <button
                   onClick={runSimulation}
-                  className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                  disabled={running}
+                  className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
                 >
-                  Run
+                  {running ? "Running..." : "Run"}
                 </button>
               </div>
 
