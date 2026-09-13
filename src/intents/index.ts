@@ -147,6 +147,14 @@ export const approveIntent = db.transaction(
   }
 );
 
+/** Backs GET /api/intents. Newest first, capped since this is a demo-scale
+ *  table and the page just wants a history list, not a cursor. */
+export function listIntents(limit = 100): IntentRow[] {
+  return db
+    .prepare(`SELECT * FROM intents ORDER BY expires_at DESC LIMIT ?`)
+    .all(limit) as IntentRow[];
+}
+
 export function expireStaleIntents(now: Date): void {
   db.prepare(`UPDATE intents SET status = 'EXPIRED' WHERE status = 'PENDING' AND expires_at < ?`).run(
     now.toISOString()

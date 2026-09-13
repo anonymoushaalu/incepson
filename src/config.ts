@@ -26,6 +26,14 @@ export const env = {
   dbPath: process.env.DB_PATH ?? "./agentpay.db",
   maxTxHbar: policy.max_tx_hbar,
   openaiModel: process.env.OPENAI_MODEL ?? "gpt-5.5",
+  // /api/dev/* (reset-day, demo-budget, scenario/:name) and
+  // /api/device/simulate-approve let anyone reset the budget or approve a
+  // pending intent without the physical device. Fine for a local demo;
+  // dangerous if this process is ever reachable from the internet. Default
+  // on (matches every existing demo command in docs/RUNBOOK.md /
+  // docs/DEMO.md) -- set ENABLE_DEV_ENDPOINTS=false to turn them off for a
+  // deploy.
+  enableDevEndpoints: process.env.ENABLE_DEV_ENDPOINTS !== "false",
 };
 
 // Network is a `${string}:${string}` CAIP-2 template type in @x402/core; the
