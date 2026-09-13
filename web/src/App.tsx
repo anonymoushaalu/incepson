@@ -5,12 +5,14 @@ import { Device } from "./routes/Device.js";
 import { Attacks } from "./routes/Attacks.js";
 import { Chain } from "./routes/Chain.js";
 import { Settings } from "./routes/Settings.js";
+import { Intro } from "./routes/Intro.js";
 import { Background } from "./components/Background.js";
 import { Roller } from "./components/Roller.js";
 import { useAgentPayStore } from "./store/useAgentPayStore.js";
 import { useRollerStore } from "./store/useRollerStore.js";
 
 const SECTIONS = [
+  { id: "intro", label: "Intro", content: <Intro /> },
   { id: "flow", label: "Live Flow", content: <LiveFlow /> },
   { id: "decisions", label: "Decisions", content: <Decisions /> },
   { id: "policy", label: "Policy", content: <Policy /> },
@@ -40,9 +42,12 @@ function App() {
 
       <nav className="sticky top-0 z-20 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-6 py-3">
-          <span className="mr-4 shrink-0 bg-gradient-to-r from-brand-400 to-violet-glow bg-clip-text text-sm font-bold text-transparent">
-            AgentPay
-          </span>
+          <button onClick={() => goTo(0)} className="mr-4 flex shrink-0 items-center gap-2">
+            <img src="/agentpay-logo.png" alt="AgentPay" className="h-7 w-7 rounded-md object-cover" />
+            <span className="bg-gradient-to-r from-brand-400 to-coin-500 bg-clip-text text-sm font-bold text-transparent">
+              AgentPay
+            </span>
+          </button>
           {SECTIONS.map((section, i) => (
             <button
               key={section.id}

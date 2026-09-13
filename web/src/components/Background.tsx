@@ -13,7 +13,7 @@ export function Background() {
       <div
         className="aurora-layer"
         style={{
-          background: "radial-gradient(circle at 70% 60%, var(--color-violet-glow), transparent 55%)",
+          background: "radial-gradient(circle at 70% 60%, var(--color-coin-500), transparent 55%)",
           animationDelay: "-8s",
           animationDirection: "reverse",
         }}

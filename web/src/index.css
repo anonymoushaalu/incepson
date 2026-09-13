@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eef9ff;
-  --color-brand-400: #38d9ff;
-  --color-brand-500: #0ea5e9;
-  --color-brand-600: #0284c7;
-  --color-violet-glow: #a78bfa;
+  /* Pulled from the AgentPay mark: the logo's blue, the coin's gold, the
+     robot-shell ink. Everything else in the theme was already tuned around
+     a blue/violet/amber trio, so this just re-anchors those same slots to
+     the actual brand colors instead of a generic sky blue. */
+  --color-brand-50: #eaf1ff;
+  --color-brand-400: #4d8dff;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-ink-900: #0b1220;
+  --color-violet-glow: #7c9bff;
   --color-emerald-glow: #34d399;
-  --color-amber-glow: #fbbf24;
+  --color-coin-400: #ffcf5c;
+  --color-coin-500: #f5b942;
+  --color-amber-glow: #f5b942;
   --color-red-glow: #f87171;
 }
 
@@ -43,7 +50,7 @@
 
 .glow-button {
   position: relative;
-  background: linear-gradient(90deg, var(--color-brand-500), var(--color-violet-glow), var(--color-brand-500));
+  background: linear-gradient(90deg, var(--color-brand-500), var(--color-coin-500), var(--color-brand-500));
   background-size: 200% 100%;
   animation: glow-sweep 4s linear infinite;
 }
@@ -53,7 +60,7 @@
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-brand-400), var(--color-violet-glow));
+  background: linear-gradient(90deg, var(--color-brand-400), var(--color-coin-400));
   z-index: -1;
   filter: blur(8px);
   opacity: 0.6;
