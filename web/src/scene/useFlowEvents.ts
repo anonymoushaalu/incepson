@@ -68,6 +68,7 @@ export function useFlowEvents() {
         path,
         color: BRANCH_COLOR[decision] ?? "#94a3b8",
         duration: decision === "DENY" ? 1.1 : 1.8,
+        amountHbar: lastDecision.amountHbar,
         onArrive: (arrivedId) => {
           setPackets((p) => p.filter((packet) => packet.id !== arrivedId));
           // Deferred one frame: called from inside Packet's useFrame, so

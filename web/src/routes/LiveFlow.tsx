@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAgentPayStore } from "../store/useAgentPayStore.js";
-import { runAgent, resetDay } from "../store/api.js";
+import { runAgent, runScenario, resetDay } from "../store/api.js";
+import type { RunAgentResult } from "../store/api.js";
 import { BudgetPanel } from "../components/BudgetPanel.js";
 import { DecisionFeed } from "../components/DecisionFeed.js";
 import { PendingIntent } from "../components/PendingIntent.js";
@@ -8,6 +9,8 @@ import { PolicyPanel } from "../components/PolicyPanel.js";
 import { FlowScene } from "../scene/FlowScene.js";
 import { useWebglSupported } from "../scene/useWebglSupported.js";
 import { LoadingState } from "../components/LoadingState.js";
+import { GlowButton } from "../components/GlowButton.js";
+import { MockBadge } from "../components/MockBadge.js";
 
 /**
  * `/` -- the hero page. The 3D enforcement-graph scene renders when WebGL is
@@ -21,6 +24,8 @@ export function LiveFlow() {
   const connect = useAgentPayStore((s) => s.connect);
   const state = useAgentPayStore((s) => s.snapshot);
   const [running, setRunning] = useState(false);
+  const [demoRunning, setDemoRunning] = useState<"pass" | "fail" | null>(null);
+  const [demoResult, setDemoResult] = useState<RunAgentResult | null>(null);
 
   useEffect(() => {
     connect();
@@ -32,6 +37,24 @@ export function LiveFlow() {
       await runAgent({});
     } finally {
       setRunning(false);
+    }
+  }
+
+  // Guaranteed one-click pass and fail cases for a live demo: both go
+  // through the exact same broker/policy/settlement path as everything
+  // else on this page (no LLM, no mocked outcome) -- "autonomous" is
+  // allowlisted and in-budget so it always settles for real on Hedera;
+  // "denied" targets a service that is never on the allowlist, so it always
+  // returns an immediate DENY with zero network activity. Neither depends
+  // on OpenAI credits or a 60s escalation wait.
+  async function handleRunDemo(kind: "pass" | "fail") {
+    setDemoRunning(kind);
+    setDemoResult(null);
+    try {
+      const result = await runScenario(kind === "pass" ? "autonomous" : "denied");
+      setDemoResult(result);
+    } finally {
+      setDemoRunning(null);
     }
   }
 

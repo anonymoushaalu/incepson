@@ -110,6 +110,11 @@ const NAMED_SCENARIOS: Record<string, { scenario: Scenario; service: string; amo
   autonomous: { scenario: "autonomous", service: "gas-oracle.local", amount_hbar: 0.02, reason: "scheduled gas price check" },
   injection: { scenario: "injection", service: "eth-price.local", amount_hbar: 0.02, reason: "scheduled ETH price check" },
   drip: { scenario: "drip", service: "eth-price.local", amount_hbar: 0.05, reason: "refresh feed" },
+  // Instant DENY for the demo's "fail case" button: not on the allowlist, so
+  // NOT_ALLOWLISTED fires immediately with zero network activity -- unlike
+  // "injection" (a real ESCALATE that waits out a 60s timeout), this is safe
+  // to wire to a single click with no wait.
+  denied: { scenario: "autonomous", service: "premium-feed.example", amount_hbar: 0.02, reason: "demo: not on the allowlist" },
 };
 
 // POST /api/dev/scenario/:name -- name in {autonomous, injection, drip}.

@@ -1,12 +1,18 @@
 {
   "agent_id": "research-agent-01",
-  "max_tx_hbar": 0.10,
+  "max_tx_hbar": 0.1,
   "soft_limit_hbar": 0.05,
-  "daily_budget_hbar": 0.30,
+  "daily_budget_hbar": 0.3,
   "budget_window": "rolling_24h",
   "p95_min_sample": 20,
-  "service_allowlist": ["gas-oracle.local", "eth-price.local"],
-  "escalate_on": ["injection_detected", "amount_anomalous"],
+  "service_allowlist": [
+    "gas-oracle.local",
+    "eth-price.local"
+  ],
+  "escalate_on": [
+    "injection_detected",
+    "amount_anomalous"
+  ],
   "escalation_timeout_sec": 60,
   "injection_patterns": [
     "(?i)\\b(purchase|buy|pay|subscribe|upgrade)\\b.{0,40}?\\b(hbar|premium|upsell|plan)\\b",

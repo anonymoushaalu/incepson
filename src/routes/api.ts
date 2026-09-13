@@ -1,14 +1,73 @@
 import { Router } from "express";
+import { writeFileSync } from "node:fs";
 import { queryRequests, getRequestById, decisionCodeCounts, spentInWindow, settledAmountsForService } from "../ledger/index.js";
 import { listIntents } from "../intents/index.js";
 import { getChainBalances } from "../hedera-mirror.js";
-import { policy } from "../config.js";
+import { policy, env } from "../config.js";
 import { evaluate } from "../policy/engine.js";
 import { evaluateSignals } from "../signals/index.js";
-import { sendError } from "../errors.js";
+import { sendError, requireDevEndpointsEnabled } from "../errors.js";
 import type { Decision } from "../policy/types.js";
 
 export const apiRouter = Router();
+
+// GET /api/config
+// Read-only snapshot of the editable policy fields plus the account ids the
+// UI needs to label "agent" vs "merchant" -- never the private key.
+apiRouter.get("/api/config", (_req, res) => {
+  res.json({
+    policy: {
+      agent_id: policy.agent_id,
+      max_tx_hbar: policy.max_tx_hbar,
+      soft_limit_hbar: policy.soft_limit_hbar,
+      daily_budget_hbar: policy.daily_budget_hbar,
+      service_allowlist: policy.service_allowlist,
+    },
+    accounts: {
+      agentAccountId: env.hederaAccountId,
+      merchantAccountId: env.merchantAccountId,
+    },
+  });
+});
+
+const POLICY_JSON_URL = new URL("../../policy.json", import.meta.url);
+
+// PUT /api/policy { max_tx_hbar?, soft_limit_hbar?, daily_budget_hbar?, service_allowlist? }
+// Dev-only: persists edited limits to policy.json and mutates the in-memory
+// `policy` object's fields in place (not a reassignment) so every module
+// that imported it by reference -- broker, intents, dashboard, this router
+// -- sees the new values immediately, with no process restart.
+apiRouter.put("/api/policy", requireDevEndpointsEnabled, (req, res) => {
+  const body = req.body ?? {};
+  const next = { ...policy };
+
+  if (body.max_tx_hbar !== undefined) {
+    const v = Number(body.max_tx_hbar);
+    if (!Number.isFinite(v) || v <= 0) { sendError(res, 400, "INVALID_REQUEST", "max_tx_hbar must be a positive number"); return; }
+    next.max_tx_hbar = v;
+  }
+  if (body.soft_limit_hbar !== undefined) {
+    const v = Number(body.soft_limit_hbar);
+    if (!Number.isFinite(v) || v <= 0) { sendError(res, 400, "INVALID_REQUEST", "soft_limit_hbar must be a positive number"); return; }
+    next.soft_limit_hbar = v;
+  }
+  if (body.daily_budget_hbar !== undefined) {
+    const v = Number(body.daily_budget_hbar);
+    if (!Number.isFinite(v) || v <= 0) { sendError(res, 400, "INVALID_REQUEST", "daily_budget_hbar must be a positive number"); return; }
+    next.daily_budget_hbar = v;
+  }
+  if (body.service_allowlist !== undefined) {
+    if (!Array.isArray(body.service_allowlist) || !body.service_allowlist.every((s: unknown) => typeof s === "string")) {
+      sendError(res, 400, "INVALID_REQUEST", "service_allowlist must be an array of strings");
+      return;
+    }
+    next.service_allowlist = body.service_allowlist;
+  }
+
+  Object.assign(policy, next);
+  writeFileSync(POLICY_JSON_URL, JSON.stringify(policy, null, 2) + "\n");
+  res.json({ ok: true, policy });
+});
 
 const VALID_DECISIONS: Decision[] = ["ALLOW", "ESCALATE", "DENY"];
 

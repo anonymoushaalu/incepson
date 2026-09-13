@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eef9ff;
+  --color-brand-400: #38d9ff;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-violet-glow: #a78bfa;
+  --color-emerald-glow: #34d399;
+  --color-amber-glow: #fbbf24;
+  --color-red-glow: #f87171;
+}
+
+@keyframes aurora-drift {
+  0%, 100% { transform: translate3d(-5%, -5%, 0) rotate(0deg); }
+  50% { transform: translate3d(5%, 5%, 0) rotate(8deg); }
+}
+
+@keyframes grain-shift {
+  0%, 100% { background-position: 0 0; }
+  50% { background-position: 4px 6px; }
+}
+
+@keyframes glow-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes count-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.aurora-layer {
+  position: absolute;
+  inset: -20%;
+  filter: blur(60px) saturate(140%);
+  opacity: 0.55;
+  animation: aurora-drift 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.glow-button {
+  position: relative;
+  background: linear-gradient(90deg, var(--color-brand-500), var(--color-violet-glow), var(--color-brand-500));
+  background-size: 200% 100%;
+  animation: glow-sweep 4s linear infinite;
+}
+
+.glow-button::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-brand-400), var(--color-violet-glow));
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.glow-button:hover::before {
+  opacity: 0.95;
+}
+
+.count-pulse {
+  animation: count-pop 0.4s ease-out;
+}

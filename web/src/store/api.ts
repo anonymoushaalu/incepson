@@ -195,3 +195,47 @@ export async function simulatePolicy(service: string, amountHbar: number, mercha
   });
   return res.json();
 }
+
+export interface AppConfig {
+  policy: {
+    agent_id: string;
+    max_tx_hbar: number;
+    soft_limit_hbar: number;
+    daily_budget_hbar: number;
+    service_allowlist: string[];
+  };
+  accounts: {
+    agentAccountId: string;
+    merchantAccountId: string;
+  };
+}
+
+// GET /api/config -- editable policy fields + account ids for the Settings section.
+export async function fetchConfig(): Promise<AppConfig> {
+  const res = await fetch("/api/config");
+  return res.json();
+}
+
+export interface UpdatePolicyBody {
+  max_tx_hbar?: number;
+  soft_limit_hbar?: number;
+  daily_budget_hbar?: number;
+  service_allowlist?: string[];
+}
+
+export interface UpdatePolicyResult {
+  ok: boolean;
+  policy?: AppConfig["policy"] & Record<string, unknown>;
+  error?: string;
+  code?: string;
+}
+
+// PUT /api/policy -- persists edits to policy.json and hot-applies them.
+export async function updatePolicy(body: UpdatePolicyBody): Promise<UpdatePolicyResult> {
+  const res = await fetch("/api/policy", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}

@@ -1,54 +1,60 @@
-import { NavLink, Route, Routes, useLocation } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 import { LiveFlow } from "./routes/LiveFlow.js";
 import { Decisions } from "./routes/Decisions.js";
 import { Policy } from "./routes/Policy.js";
 import { Device } from "./routes/Device.js";
 import { Attacks } from "./routes/Attacks.js";
 import { Chain } from "./routes/Chain.js";
-import { PageTransition } from "./components/PageTransition.js";
+import { Settings } from "./routes/Settings.js";
+import { Background } from "./components/Background.js";
+import { Roller } from "./components/Roller.js";
 import { useAgentPayStore } from "./store/useAgentPayStore.js";
+import { useRollerStore } from "./store/useRollerStore.js";
 
-const NAV_LINKS = [
-  { to: "/", label: "Live Flow", end: true },
-  { to: "/decisions", label: "Decisions" },
-  { to: "/policy", label: "Policy" },
-  { to: "/device", label: "Device" },
-  { to: "/attacks", label: "Attacks" },
-  { to: "/chain", label: "On-Chain" },
+const SECTIONS = [
+  { id: "flow", label: "Live Flow", content: <LiveFlow /> },
+  { id: "decisions", label: "Decisions", content: <Decisions /> },
+  { id: "policy", label: "Policy", content: <Policy /> },
+  { id: "device", label: "Device", content: <Device /> },
+  { id: "attacks", label: "Attacks", content: <Attacks /> },
+  { id: "chain", label: "On-Chain", content: <Chain /> },
+  { id: "settings", label: "Settings", content: <Settings /> },
 ];
 
 function ConnectionBadge() {
   const connected = useAgentPayStore((s) => s.connected);
   return (
-    <span className="flex items-center gap-1.5 text-xs text-slate-500" title={connected ? "Live" : "Disconnected"}>
-      <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-500" : "bg-red-500"}`} />
+    <span className="flex items-center gap-1.5 text-xs text-slate-400" title={connected ? "Live" : "Disconnected"}>
+      <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-400 shadow-[0_0_8px_theme(colors.emerald.400)]" : "bg-red-500"}`} />
       {connected ? "Live" : "Disconnected"}
     </span>
   );
 }
 
 function App() {
-  const location = useLocation();
+  const activeIndex = useRollerStore((s) => s.activeIndex);
+  const goTo = useRollerStore((s) => s.goTo);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+    <div className="min-h-screen text-slate-100">
+      <Background />
+
+      <nav className="sticky top-0 z-20 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-6 py-3">
-          <span className="mr-4 shrink-0 text-sm font-bold text-slate-300">AgentPay</span>
-          {NAV_LINKS.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) =>
-                `shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-                }`
-              }
+          <span className="mr-4 shrink-0 bg-gradient-to-r from-brand-400 to-violet-glow bg-clip-text text-sm font-bold text-transparent">
+            AgentPay
+          </span>
+          {SECTIONS.map((section, i) => (
+            <button
+              key={section.id}
+              onClick={() => goTo(i)}
+              className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                activeIndex === i
+                  ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              }`}
             >
-              {link.label}
-            </NavLink>
+              {section.label}
+            </button>
           ))}
           <div className="ml-auto shrink-0 pl-4">
             <ConnectionBadge />
@@ -56,20 +62,20 @@ function App() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-6xl p-6">
-        <AnimatePresence mode="wait">
-          <PageTransition key={location.pathname}>
-            <Routes location={location}>
-              <Route path="/" element={<LiveFlow />} />
-              <Route path="/decisions" element={<Decisions />} />
-              <Route path="/policy" element={<Policy />} />
-              <Route path="/device" element={<Device />} />
-              <Route path="/attacks" element={<Attacks />} />
-              <Route path="/chain" element={<Chain />} />
-            </Routes>
-          </PageTransition>
-        </AnimatePresence>
-      </main>
+      <Roller sections={SECTIONS} />
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center gap-1.5">
+        {SECTIONS.map((section, i) => (
+          <button
+            key={section.id}
+            onClick={() => goTo(i)}
+            className={`pointer-events-auto h-1.5 rounded-full transition-all ${
+              activeIndex === i ? "w-6 bg-brand-400" : "w-1.5 bg-white/20 hover:bg-white/40"
+            }`}
+            aria-label={`Go to ${section.label}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
