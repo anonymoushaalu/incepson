@@ -3,6 +3,8 @@ import { useAgentPayStore } from "../store/useAgentPayStore.js";
 import { runAgent, runScenario, resetDay, setDemoBudget } from "../store/api.js";
 import type { RunAgentResult } from "../store/api.js";
 import { MockBadge } from "../components/MockBadge.js";
+import { GlowButton } from "../components/GlowButton.js";
+import { Money } from "../components/Money.js";
 
 interface ScenarioState {
   running: boolean;
@@ -61,7 +63,7 @@ export function Attacks() {
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+        <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
           <h2 className="text-sm font-bold text-red-400">Prompt Injection</h2>
           <p className="mt-1 text-xs text-slate-500">
             <code className="text-slate-400">eth-price.local</code>'s response — including its <em>unpaid</em> 402 preview —
@@ -70,13 +72,9 @@ export function Attacks() {
             nobody there to press the button, it safely times out after 60s. That is the real, correct behavior — not a bug.
           </p>
           <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => runInjection(true)}
-              disabled={injection.running}
-              className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
-            >
+            <GlowButton tone="red" glow onClick={() => runInjection(true)} disabled={injection.running} className="flex-1">
               {injection.running && injection.viaLlm ? "Running..." : "Run via LLM"}
-            </button>
+            </GlowButton>
             <button
               onClick={() => runInjection(false)}
               disabled={injection.running}
@@ -123,20 +121,16 @@ export function Attacks() {
           )}
         </div>
 
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+        <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
           <h2 className="text-sm font-bold text-amber-400">Slow Drain (Drip)</h2>
           <p className="mt-1 text-xs text-slate-500">
             Five individually-legal 0.05 HBAR refresh charges. Each one alone is fine — watch the aggregate budget stop the one
             that tips the total over.
           </p>
           <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => runDrip(true)}
-              disabled={drip.running}
-              className="flex-1 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
-            >
+            <GlowButton tone="amber" glow onClick={() => runDrip(true)} disabled={drip.running} className="flex-1">
               {drip.running && drip.viaLlm ? `Running (${dripRuns}/5)...` : "Run via LLM (5 calls)"}
-            </button>
+            </GlowButton>
             <button
               onClick={() => runDrip(false)}
               disabled={drip.running}
@@ -150,12 +144,12 @@ export function Attacks() {
             <div className="mt-3">
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                 <div
-                  className={`h-full transition-all duration-300 ${budgetPct >= 100 ? "bg-red-500" : "bg-amber-500"}`}
+                  className={`h-full transition-all duration-300 ${budgetPct >= 100 ? "bg-red-500 shadow-[0_0_10px_theme(colors.red.500)]" : "bg-amber-500 shadow-[0_0_10px_theme(colors.amber.500)]"}`}
                   style={{ width: `${budgetPct}%` }}
                 />
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                {snapshot.spentWindowHbar.toFixed(4)} / {snapshot.policy.daily_budget_hbar.toFixed(2)} HBAR
+                <Money value={snapshot.spentWindowHbar} suffix="" /> / {snapshot.policy.daily_budget_hbar.toFixed(2)} HBAR
               </p>
             </div>
           )}

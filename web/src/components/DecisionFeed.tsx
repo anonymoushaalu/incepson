@@ -8,7 +8,7 @@ const COLORS: Record<RequestRow["decision"], string> = {
 
 export function DecisionFeed({ state }: { state: Snapshot }) {
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+    <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
       <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Decision Feed</h2>
       <div className="mt-3 flex flex-col gap-2 max-h-96 overflow-y-auto">
         {state.recentRequests.length === 0 && (

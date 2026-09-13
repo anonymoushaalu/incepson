@@ -46,7 +46,7 @@ export function Chain() {
         <LoadingState />
       ) : (
         <div className="space-y-6">
-          <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
             <h2 className="mb-2 text-sm font-medium text-slate-400 uppercase tracking-wide">Account balances</h2>
             {balances ? (
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -72,7 +72,7 @@ export function Chain() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
             <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">
               Settled transactions ({transactions?.length ?? 0})
             </h2>

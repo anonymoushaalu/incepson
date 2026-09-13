@@ -109,7 +109,7 @@ export function Device() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-4">
-          <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
             <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">OLED mirror</h2>
             <OledMirror state={oledState} />
           </div>
@@ -136,7 +136,7 @@ export function Device() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
             <h2 className="mb-1 text-sm font-medium text-slate-400 uppercase tracking-wide">Adversarial checks</h2>
             <p className="mb-3 text-xs text-slate-600">
               The HMAC signing key lives only on the server and the physical device — never in this browser, so these checks
@@ -167,7 +167,7 @@ export function Device() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
             <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">Results</h2>
             {checks.length === 0 ? (
               <p className="text-sm text-slate-500">No checks run yet.</p>

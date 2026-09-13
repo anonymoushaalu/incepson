@@ -4,6 +4,7 @@ import type { RequestRow } from "../store/useAgentPayStore.js";
 import { Sparkline } from "../components/Sparkline.js";
 import { RequestDrawer } from "../components/RequestDrawer.js";
 import { LoadingState } from "../components/LoadingState.js";
+import { Money } from "../components/Money.js";
 
 const DECISIONS: RequestRow["decision"][] = ["ALLOW", "ESCALATE", "DENY"];
 
@@ -60,15 +61,17 @@ export function Decisions() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-xl font-bold">Decision Ledger</h1>
-        <p className="text-sm text-slate-500">Every request the agent has made, with the reason it settled, escalated, or was refused.</p>
+        <h1 className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-xl font-bold text-transparent">
+          Decision Ledger
+        </h1>
+        <p className="text-sm text-slate-400">Every request the agent has made, with the reason it settled, escalated, or was refused.</p>
       </header>
 
       {!snapshot ? (
         <LoadingState />
       ) : (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
             <div>
               <p className="mb-1 text-xs uppercase tracking-wide text-slate-500">Cumulative settled spend</p>
               <Sparkline values={cumulativeSpend} />
@@ -130,7 +133,9 @@ export function Decisions() {
                   >
                     <td className="px-4 py-2 text-slate-500">{new Date(row.created_at).toLocaleTimeString()}</td>
                     <td className="px-4 py-2 font-mono text-slate-300">{row.service}</td>
-                    <td className="px-4 py-2 text-slate-300">{row.amount_hbar.toFixed(4)}</td>
+                    <td className="px-4 py-2 text-slate-300">
+                      <Money value={row.amount_hbar} suffix="" />
+                    </td>
                     <td className="px-4 py-2">
                       <span className={`rounded px-2 py-0.5 text-xs font-medium ${DECISION_STYLE[row.decision]}`}>
                         {row.decision}

@@ -109,7 +109,7 @@ export function Policy() {
                     ? result?.decision === "DENY"
                       ? "border-red-600 bg-red-950/30"
                       : "border-amber-600 bg-amber-950/30"
-                    : "border-slate-700 bg-slate-900"
+                    : "border-slate-700 bg-slate-900/70 backdrop-blur"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -128,7 +128,7 @@ export function Policy() {
             ))}
             <div
               className={`rounded-lg border p-4 ${
-                result?.decision === "ALLOW" ? "border-emerald-600 bg-emerald-950/30" : "border-slate-700 bg-slate-900"
+                result?.decision === "ALLOW" ? "border-emerald-600 bg-emerald-950/30" : "border-slate-700 bg-slate-900/70 backdrop-blur"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -143,7 +143,7 @@ export function Policy() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+            <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
               <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">Simulate a request</h2>
               <p className="mb-3 text-xs text-slate-600">
                 Runs the real server-side <code className="text-slate-500">evaluate()</code> against a hypothetical request —
@@ -204,7 +204,7 @@ export function Policy() {
               )}
             </div>
 
-            <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+            <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
               <h2 className="mb-3 text-sm font-medium text-slate-400 uppercase tracking-wide">policy.json (raw)</h2>
               <pre className="max-h-64 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-300">
                 {JSON.stringify(snapshot.policy, null, 2)}

@@ -2,6 +2,7 @@
 
 An autonomous LLM agent can *request* payments. It can never *authorize* them.
 
+
 Every payment an agent asks for passes through a deterministic policy engine
 — plain TypeScript, no language model, no I/O — that resolves the request to
 exactly one of three outcomes:

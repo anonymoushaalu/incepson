@@ -12,7 +12,7 @@ export function PendingIntent({ state }: { state: Snapshot }) {
   }, [intent]);
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+    <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 backdrop-blur">
       <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Pending Intent</h2>
       {!intent ? (
         <p className="mt-3 text-sm text-slate-500">Nothing awaiting approval.</p>
