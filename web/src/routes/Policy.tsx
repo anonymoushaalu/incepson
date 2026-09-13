@@ -4,6 +4,7 @@ import type { PolicyConfig } from "../store/useAgentPayStore.js";
 import { simulatePolicy } from "../store/api.js";
 import type { SimulateResult } from "../store/api.js";
 import { LoadingState } from "../components/LoadingState.js";
+import { GlowButton } from "../components/GlowButton.js";
 
 interface Gate {
   id: string;
@@ -177,13 +178,9 @@ export function Policy() {
                     className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-200"
                   />
                 </div>
-                <button
-                  onClick={runSimulation}
-                  disabled={running}
-                  className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-                >
+                <GlowButton tone="emerald" glow onClick={runSimulation} disabled={running} className="w-full">
                   {running ? "Running..." : "Run"}
-                </button>
+                </GlowButton>
               </div>
 
               {result && (
